@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Idle Optimizer — Forge Prototype</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Archetype select overlay (run start) -->
+<div id="archetype-select" class="overlay hidden">
+  <div class="overlay-box wide">
+    <h1>Idle Optimizer</h1>
+    <p class="lead">Run an AI lab. Race to AGI. Don't get everyone killed.</p>
+    <div class="overlay-scroll">
+      <div id="archetype-grid" class="archetype-grid"></div>
+      <div class="identity-row">
+        <label>Lab Name <input id="lab-name-input" type="text" maxlength="24" placeholder="Foundry Labs" /></label>
+        <label>Crest <select id="lab-crest-select"></select></label>
+        <label>Palette <select id="lab-palette-select"></select></label>
+      </div>
+    </div>
+    <div class="overlay-actions">
+      <button id="start-run-btn" class="action-btn primary">Start Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- HUD (top bar) -->
+<div id="hud" class="hidden">
+  <div class="hud-left">
+    <span id="hud-lab-crest">⚙</span>
+    <span id="hud-lab-name">Lab</span>
+  </div>
+  <div class="hud-center">
+    <span class="hud-stat"><span class="hud-label">Day</span> <span id="hud-day">1</span></span>
+    <span class="hud-stat"><span class="hud-label">Compute</span> <span id="hud-compute">0</span></span>
+    <span class="hud-stat hud-stat-hidden"><span class="hud-label">Capital</span> <span id="hud-money">$0</span></span>
+    <span class="hud-stat hud-stat-hidden"><span class="hud-label">Cap.</span> <span id="hud-capability">0</span></span>
+  </div>
+  <div class="hud-right">
+    <span id="status-dot" class="status-dot status-green" title="Status"></span>
+    <span class="speed-controls">
+      <button data-speed="0" class="speed-btn">⏸</button>
+      <button data-speed="1" class="speed-btn active">1×</button>
+      <button data-speed="10" class="speed-btn">10×</button>
+      <button data-speed="100" class="speed-btn">100×</button>
+    </span>
+  </div>
+</div>
+
+<!-- News ticker (under HUD) -->
+<div id="ticker" class="hidden">
+  <div id="ticker-track"></div>
+</div>
+
+<!-- Main scene container -->
+<main id="app" class="hidden">
+  <section id="scene-desk" class="scene"></section>
+  <section id="scene-office" class="scene hidden"></section>
+  <section id="scene-operations" class="scene hidden"></section>
+  <section id="scene-world" class="scene hidden"></section>
+  <section id="scene-logs" class="scene hidden"></section>
+</main>
+
+<!-- Bottom scene-nav -->
+<nav id="scene-nav" class="hidden">
+  <button data-scene="desk" class="nav-btn active">🖥 Desk</button>
+  <button data-scene="office" class="nav-btn locked nav-hidden">🏢 Office</button>
+  <button data-scene="operations" class="nav-btn locked nav-hidden">⚙ Ops</button>
+  <button data-scene="world" class="nav-btn locked nav-hidden">🌐 World</button>
+  <button data-scene="logs" class="nav-btn locked nav-hidden">📜 Logs</button>
+</nav>
+
+<!-- Modal overlays (filled by JS) -->
+<div id="pivot-overlay" class="overlay hidden">
+  <div class="overlay-box">
+    <h2 id="pivot-title">Pivot</h2>
+    <div class="overlay-scroll">
+      <p id="pivot-desc"></p>
+      <div id="pivot-flavor" class="flavor"></div>
+    </div>
+    <div id="pivot-choices" class="pivot-choices"></div>
+  </div>
+</div>
+
+<div id="incident-overlay" class="overlay hidden">
+  <div class="overlay-box">
+    <h2 id="incident-title">Incident</h2>
+    <div class="overlay-scroll">
+      <div id="incident-flavor" class="flavor"></div>
+      <p id="incident-desc"></p>
+    </div>
+    <div id="incident-choices" class="pivot-choices"></div>
+  </div>
+</div>
+
+<div id="ending-overlay" class="overlay hidden">
+  <div class="overlay-box wide">
+    <h2 id="ending-title">Run Resolution</h2>
+    <div class="overlay-scroll">
+      <div id="ending-cinematic" class="flavor"></div>
+      <div id="ending-stats" class="ending-stats"></div>
+      <div id="ending-labcard"></div>
+    </div>
+    <div class="ending-actions">
+      <button id="ending-restart" class="action-btn primary">Start a New Run</button>
+      <button id="ending-download-card" class="action-btn">Download Lab Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Naming modal: shown before a Pretraining run begins -->
+<div id="name-model-overlay" class="overlay hidden"></div>
+
+<!-- Model report card: cinematic victory moment after a Pretraining run -->
+<div id="model-overlay" class="overlay hidden"></div>
+
+<!-- Deployment overlay (deploy a trained model to a domain) -->
+<div id="deploy-overlay" class="overlay hidden">
+  <div class="overlay-box wide">
+    <h2 id="deploy-title">Deploy Model</h2>
+    <div class="overlay-scroll">
+      <div id="deploy-model-line" class="lead"></div>
+      <div id="deploy-domain-grid" class="deploy-domain-grid"></div>
+      <div id="deploy-gpu-allocator" class="deploy-gpu-allocator"></div>
+      <div id="deploy-projection" class="deploy-projection"></div>
+    </div>
+    <div class="overlay-actions">
+      <button id="deploy-cancel" class="action-btn">Cancel</button>
+      <button id="deploy-confirm" class="action-btn primary">Confirm Deployment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Decision-required gate overlay -->
+<div id="advisor-overlay" class="overlay-tooltip hidden">
+  <div class="advisor-bubble">
+    <span id="advisor-author">COO</span>
+    <p id="advisor-msg"></p>
+    <button id="advisor-dismiss" class="link-btn">Dismiss</button>
+  </div>
+</div>
+
+<!-- Module load order matters: data → sim → systems → scenes → main -->
+<script src="js/state.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data/archetypes.js"></script>
+<script src="js/data/tiers.js"></script>
+<script src="js/data/upgrades.js"></script>
+<script src="js/data/pivots.js"></script>
+<script src="js/data/ticker.js"></script>
+<script src="js/data/endings.js"></script>
+<script src="js/data/personnel.js"></script>
+<script src="js/data/incidents.js"></script>
+<script src="js/data/paradigms.js"></script>
+<script src="js/data/model-moments.js"></script>
+<script src="js/data/model-flavor.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/training.js"></script>
+<script src="js/modelIdentity.js"></script>
+<script src="js/deployments.js"></script>
+<script src="js/personnel.js"></script>
+<script src="js/events.js"></script>
+<script src="js/income.js"></script>
+<script src="js/pivots.js"></script>
+<script src="js/autopilot.js"></script>
+<script src="js/endings.js"></script>
+<script src="js/labcard.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/discovery.js"></script>
+<script src="js/scenes/desk.js"></script>
+<script src="js/scenes/office.js"></script>
+<script src="js/scenes/operations.js"></script>
+<script src="js/scenes/world.js"></script>
+<script src="js/scenes/logs.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

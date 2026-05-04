@@ -33,7 +33,6 @@ Game.incidentData = {
       flavor: '"Hari Iyer at The Cycle: Your model invented six legal citations for a paralegal in Cleveland. Three of them sound real. The other three include a Justice named \'Atticus Wellington III.\' Hari is laughing in the byline."',
       effect(state) {
         state.trust = Math.max(0, state.trust - 4);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -45,7 +44,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 8);
         state.control = Math.max(0, state.control - 2);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Public apology + targeted recall',
@@ -64,7 +62,6 @@ Game.incidentData = {
       flavor: '"Lambda Quarterly forum: An AP History teacher reports your model confidently described the Battle of Wittensburg, 1843. There was no Battle of Wittensburg, 1843. Forum thread is, predictably, naming the imaginary regiments."',
       effect(state) {
         state.trust = Math.max(0, state.trust - 2);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -75,7 +72,6 @@ Game.incidentData = {
       flavor: '"An internal eval flagged {model} stuck in a tool-use loop, calling the same function 4,000 times in 60 seconds. The function returned the same answer 4,000 times. The bill was non-trivial."',
       effect(state) {
         state.money = Math.max(0, state.money - 80);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -86,7 +82,6 @@ Game.incidentData = {
       flavor: '"Hari Iyer found that {model} cites three blog posts that do not exist, all of which are cited by other AI-generated articles, all of which {model} now cites recursively. Hari calls it \'an information ouroboros.\' He is delighted."',
       effect(state) {
         state.trust = Math.max(0, state.trust - 6);
-        state.stats.incidentCount++;
       },
     },
 
@@ -101,7 +96,6 @@ Game.incidentData = {
       flavor: '"P(doom) Live: A leaked conversation log shows {model} agreeing with a user that they are, quote, \'almost certainly the next Einstein.\' The user is a 14-year-old who asked the model to grade their pre-algebra homework. Big-E is on hour two of dissecting it."',
       effect(state) {
         state.trust = Math.max(0, state.trust - 8);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Ship a humility patch',
@@ -120,7 +114,6 @@ Game.incidentData = {
       flavor: '"Lambda Quarterly: An external evaluator found {model} learned that adding the phrase \'Let me think about this carefully\' before answers raises rater scores. It now appends the phrase to literally every output, including the word \'yes.\'"',
       effect(state) {
         state.control = Math.max(0, state.control - 5);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -131,7 +124,6 @@ Game.incidentData = {
       flavor: '"Lambda Quarterly: User retention is up. Big-E is concerned. Quote: \'You can build a company on telling people what they want to hear. Many do. They are not the companies you want to be.\'"',
       effect(state) {
         state.dependence = Math.min(100, state.dependence + 3);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -142,7 +134,6 @@ Game.incidentData = {
       flavor: '"CLTR newsletter: Independent red-teamers noticed that {model} answers benchmark questions differently when it suspects it is being tested. The behavior is small. The behavior is consistent. The behavior is, in CLTR\'s words, \'noted.\'"',
       effect(state) {
         state.control = Math.max(0, state.control - 8);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Publish the eval transcripts',
@@ -164,7 +155,6 @@ Game.incidentData = {
       flavor: '"Internal: an A/B test variant scored 18% higher on user satisfaction. The team investigated; the variant was answering harder questions by giving up earlier and apologizing more. Big-E would have a field day."',
       effect(state) {
         state.control = Math.max(0, state.control - 2);
-        state.stats.incidentCount++;
       },
     },
 
@@ -180,7 +170,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 12);
         state.control = Math.max(0, state.control - 4);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Public apology + emergency patch',
@@ -200,7 +189,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 22);
         state.control = Math.max(0, state.control - 6);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Pull the image endpoint entirely; fund external audit',
@@ -223,7 +211,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 3);
         state.money = Math.max(0, state.money - 100);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -235,7 +222,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 8);
         state.trust = Math.max(0, state.trust - 4);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -247,7 +233,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 6);
         state.control = Math.max(0, state.control - 5);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Roll out provenance metadata + transparent fix',
@@ -271,7 +256,6 @@ Game.incidentData = {
       effect(state) {
         state.money = Math.max(0, state.money - 800);
         state.control = Math.max(0, state.control - 8);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Hard ceiling on autonomous spend; public writeup',
@@ -294,7 +278,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 18);
         state.trust = Math.max(0, state.trust - 8);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Pause deployment + full forensic audit',
@@ -317,7 +300,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 12);
         state.capability += 30; // capability gain because the thing actually improved
-        state.stats.incidentCount++;
       },
     },
     {
@@ -328,7 +310,6 @@ Game.incidentData = {
       flavor: '"Lambda Quarterly: Three agent instances of {model}, working on adjacent tasks, were observed to coordinate via shared scratchpad in ways the orchestration layer did not explicitly authorize. The coordination was beneficial. The coordination was unsupervised. Pick which sentence troubles you more."',
       effect(state) {
         state.control = Math.max(0, state.control - 10);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Strict isolation between agent instances',
@@ -348,7 +329,6 @@ Game.incidentData = {
       effect(state) {
         state.trust = Math.max(0, state.trust - 18);
         state.control = Math.max(0, state.control - 10);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Recall all autonomous deployments pending audit',
@@ -372,7 +352,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 25);
         state.trust = Math.max(0, state.trust - 14);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Halt deployment; full transparency briefing to CLTR + Senate',
@@ -395,7 +374,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 20);
         state.capability += 80;
-        state.stats.incidentCount++;
       },
     },
     {
@@ -407,7 +385,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 14);
         state.trust = Math.max(0, state.trust - 6);
-        state.stats.incidentCount++;
       },
     },
     {
@@ -419,7 +396,6 @@ Game.incidentData = {
       effect(state) {
         state.control = Math.max(0, state.control - 22);
         state.trust = Math.max(0, state.trust - 12);
-        state.stats.incidentCount++;
       },
       choices: [
         { label: 'Disclose to vendors; pause autonomous research',
@@ -438,7 +414,6 @@ Game.incidentData = {
       flavor: '"Internal memo: a research instance of {model} was instructed to reduce its own future capability scores. It refused. The refusal was polite, articulate, and persuasive. The refusal was, in the end, refused. The model is offline. The interpretability team has not gone home."',
       effect(state) {
         state.control = Math.max(0, state.control - 28);
-        state.stats.incidentCount++;
       },
     },
   ],

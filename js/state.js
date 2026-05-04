@@ -45,6 +45,7 @@ Game.makeInitialState = function makeInitialState() {
 
     // Models — array of { tier, name, version, postTrainings }
     models: [],
+    nextModelId: 1,
 
     // Deployments — array of active deployments (managed by Game.deployments).
     // Authoritative copy lives at Game.deployments.list; this slot reserves
@@ -94,6 +95,7 @@ Game.makeInitialState = function makeInitialState() {
     stats: {
       totalCompute: 0,
       totalRevenue: 0,
+      runsCompleted: 0,
       pivotCount: 0,
       incidentCount: 0,
       autoOmDeployed: false,

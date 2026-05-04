@@ -156,7 +156,15 @@ Game.scenes.world = {
     const s = Game.state;
     if (!s) return;
 
-    const inferenceGpus = s.gpus.filter(g => g.spec === 'inference');
+    const deployedGpuIds = [];
+    if (Game.deployments && Game.deployments.list) {
+      for (const dep of Game.deployments.list) {
+        for (const gid of (dep.gpuIds || [])) deployedGpuIds.push(gid);
+      }
+    }
+    const inferenceGpus = deployedGpuIds
+      .map(id => s.gpus.find(g => g.id === id))
+      .filter(Boolean);
     const regionCounts = {};
     for (const r of this._regions) regionCounts[r.id] = 0;
     inferenceGpus.forEach((g, i) => {

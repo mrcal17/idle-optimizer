@@ -197,18 +197,10 @@ Game.scenes.office = {
       return;
     }
     if (action === 'deploy') {
-      if (Game.deployments && typeof Game.deployments.openDeployModal === 'function') {
-        Game.deployments.openDeployModal(model);
+      if (Game.deployments && typeof Game.deployments.openOverlay === 'function') {
+        Game.deployments.openOverlay(model.id != null ? model.id : model.tier);
       } else {
-        // Defensive fallback: just mark as deployed
-        model.status = 'deployed';
-        model.deploymentName = model.deploymentName || 'Consumer Chat';
-        if (Game.events && Game.events.recordModelMoment) {
-          Game.events.recordModelMoment(model.id,
-            `Deployed to ${model.deploymentName} on Day ${Math.floor(s.day)}.`,
-            'milestone');
-        }
-        if (Game.ui && Game.ui.refresh) Game.ui.refresh();
+        Game.addLog('Deployment system not loaded.', 'warn');
       }
       return;
     }

@@ -50,7 +50,11 @@ Game.pivots = (function() {
 
       // Auto-Strategist + pivotPolicy === 'auto-decline': decline silently.
       const u = s.autopilot.unlocks;
-      const policy = s.autopilot.custom.pivotPolicy;
+      let policy = s.autopilot.custom.pivotPolicy;
+      if (u['auto-strategist'] && policy === 'ask') {
+        if (s.flags['safe-auto-decline']) policy = 'auto-decline';
+        if (s.flags['frontier-auto-accept']) policy = 'auto-accept';
+      }
       if (u['auto-strategist'] && policy === 'auto-decline') {
         // Mark as taken with a sentinel "-1" choice so we don't re-prompt.
         s.pivots[pivot.id] = -1;

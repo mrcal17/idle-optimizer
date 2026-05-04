@@ -36,6 +36,7 @@
 
   Game.startRun = function(opts) {
     Game.state = Game.makeInitialState();
+    if (Game.deployments && Game.deployments.reset) Game.deployments.reset();
     Game.state.archetypeId = opts.archId;
     Game.state.labName = opts.labName;
     Game.state.crest = opts.crest;
@@ -44,6 +45,7 @@
 
     // Apply archetype starting kit
     const arch = Game.archetypes[opts.archId];
+    if (arch && arch.defaultAutopilot) Game.state.autopilot.preset = arch.defaultAutopilot;
     if (arch && arch.applyStartingKit) arch.applyStartingKit(Game.state);
     Game.ui.applyArchetypePalette(arch);
 

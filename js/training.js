@@ -36,40 +36,36 @@ Game.training = (function() {
   function pretrainComputeMult(state) {
     let m = 1;
     if (state.flags['paradigm-sparse-moe']) m *= 0.7;
-    if (state.flags['paradigm-curriculum']) m *= 0.85;
-    if (state.flags['paradigm-distillation']) m *= 0.9;
+    if (state.flags['paradigm-synthetic-data-flywheel']) m *= 0.8;
     return m;
   }
 
   function pretrainGpuTimeMult(state) {
     let m = 1;
-    if (state.flags['paradigm-flash-attention']) m *= 0.75;
-    if (state.flags['paradigm-pipeline-parallel']) m *= 0.85;
+    if (state.flags['paradigm-curriculum-learning']) m *= 0.75;
     return m;
   }
 
   function postTrainTrustGainMult(state) {
     let m = 1;
-    if (state.flags['paradigm-constitutional-ai']) m *= 1.4;
-    if (state.flags['paradigm-rlhf-stack']) m *= 1.2;
+    if (state.flags['paradigm-constitutional-self-critique']) m *= 1.4;
     return m;
   }
 
   function postTrainComputeMult(state) {
     let m = 1;
-    if (state.flags['paradigm-rlhf-stack']) m *= 0.85;
     return m;
   }
 
   function architectureParadigmChanceMult(state) {
     let m = 1;
-    if (state.flags['paradigm-rapid-iteration']) m *= 1.5;
+    if (state.flags['paradigm-adversarial-red-team-loop']) m *= 1.25;
     return m;
   }
 
   function pretrainCapabilityGainMult(state) {
     let m = 1;
-    if (state.flags['paradigm-scaling-laws']) m *= 1.25;
+    if (state.flags['paradigm-chain-of-thought-distillation']) m *= 1.25;
     return m;
   }
 
@@ -135,7 +131,10 @@ Game.training = (function() {
   /* ---------- validation helpers ---------- */
 
   function idleGpuIds(state) {
-    return state.gpus.filter(g => !g.busyJobId).map(g => g.id);
+    const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+      ? Game.deployments.allocatedGpuIds()
+      : new Set();
+    return state.gpus.filter(g => !g.busyJobId && !deployed.has(g.id)).map(g => g.id);
   }
 
   function gpuById(state, id) {
@@ -181,11 +180,15 @@ Game.training = (function() {
     }
 
     /* Check assigned GPUs are real & idle */
+    const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+      ? Game.deployments.allocatedGpuIds()
+      : new Set();
     const validGpus = [];
     for (const id of requestedGpuIds) {
       const g = gpuById(s, id);
       if (!g) continue;
       if (g.busyJobId) continue;
+      if (deployed.has(g.id)) continue;
       validGpus.push(g);
     }
     if (!validGpus.length) {
@@ -395,7 +398,11 @@ Game.training = (function() {
       s._lastAddedModelId = model.id;
     } else {
       model.version = +(model.version + 0.2).toFixed(2);
-      if (!model.id) model.id = 'model-' + (s.nextModelId = (s.nextModelId || 1));
+      if (!model.id) {
+        const nextId = s.nextModelId || 1;
+        model.id = 'model-' + nextId;
+        s.nextModelId = nextId + 1;
+      }
       if (!Array.isArray(model.events)) model.events = [];
       /* Refresh the eval flavor so the report card on a re-pretrain
          tells the story of the new version. */
@@ -416,6 +423,11 @@ Game.training = (function() {
     }
 
     Game.addLog(`Pretraining of ${model.name} v${model.version} complete. Capability +${gain.toFixed(1)}.`, 'tier');
+
+    const apexTier = Game.tiers ? Game.tiers.length - 1 : Game.config.tierThresholds.length - 1;
+    if (run.modelTier >= apexTier) {
+      s.flags['apex-pretrain-complete'] = true;
+    }
 
     /* Per-model "trained" event */
     if (Game.events && Game.events.recordModelMoment) {
@@ -441,10 +453,19 @@ Game.training = (function() {
     const baseChance = c.training.architectureParadigmChance * architectureParadigmChanceMult(s);
 
     if (Math.random() < baseChance && Game.paradigmData && Game.paradigmData.pickRandom) {
-      const shift = Game.paradigmData.pickRandom(s);
+      const takenIds = (s.paradigms || []).map(p => p && p.id).filter(Boolean);
+      const shift = Game.paradigmData.pickRandom(takenIds);
       if (shift) {
         s.paradigms.push(shift);
-        if (shift.id) s.flags['paradigm-' + shift.id] = true;
+        if (typeof shift.effect === 'function') {
+          try { shift.effect(s); }
+          catch (e) {
+            console.error('Paradigm effect failed:', shift.id, e);
+            if (shift.id) s.flags['paradigm-' + shift.id] = true;
+          }
+        } else if (shift.id) {
+          s.flags['paradigm-' + shift.id] = true;
+        }
         Game.addLog(`Paradigm shift unlocked: ${shift.name}. ${shift.flavor || ''}`, 'tier');
         if (Game.events && Game.events.scriptedBeat) {
           Game.events.scriptedBeat('paradigm-' + shift.id);
@@ -510,7 +531,6 @@ Game.training = (function() {
     chance *= Math.max(0.5, 1 - 0.05 * trainingGpus);
 
     if (Math.random() < chance) {
-      s.stats.incidentCount = (s.stats.incidentCount || 0) + 1;
       if (Game.events && Game.events.fireIncidentFromTraining) {
         Game.events.fireIncidentFromTraining(run);
       } else {

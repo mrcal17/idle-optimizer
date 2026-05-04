@@ -21,6 +21,8 @@
       document.getElementById('ticker').classList.add('hidden');
       document.getElementById('app').classList.add('hidden');
       document.getElementById('scene-nav').classList.add('hidden');
+      // Vitals widget belongs to a run — hide it on the archetype-select screen.
+      if (Game.founder && Game.founder.hideVitals) Game.founder.hideVitals();
       // Show archetype select
       document.getElementById('archetype-select').classList.remove('hidden');
     });
@@ -32,12 +34,22 @@
     document.getElementById('advisor-dismiss').addEventListener('click', () => {
       document.getElementById('advisor-overlay').classList.add('hidden');
     });
+
+    const eodEndBtn = document.getElementById('eod-end-btn');
+    if (eodEndBtn) {
+      eodEndBtn.addEventListener('click', () => {
+        if (Game.dayLoop && Game.dayLoop.endDay) Game.dayLoop.endDay();
+      });
+    }
   }
 
   Game.startRun = function(opts) {
     Game.state = Game.makeInitialState();
     if (Game.deployments && Game.deployments.reset) Game.deployments.reset();
     Game.state.archetypeId = opts.archId;
+    /* Apply stage theme attribute on <html> immediately so even pre-cinematic
+       UI reads the Garage palette. */
+    if (Game.stages && Game.stages.applyTheme) Game.stages.applyTheme(Game.state.stage);
     Game.state.labName = opts.labName;
     Game.state.crest = opts.crest;
     Game.state.palette = opts.palette;
@@ -48,6 +60,12 @@
     if (arch && arch.defaultAutopilot) Game.state.autopilot.preset = arch.defaultAutopilot;
     if (arch && arch.applyStartingKit) arch.applyStartingKit(Game.state);
     Game.ui.applyArchetypePalette(arch);
+
+    /* Founder character — pick portrait, reset energy/mood/traits, and
+       reveal the always-visible vitals widget. Defensive against module
+       absence so a partial load still boots. */
+    if (Game.founder && Game.founder.init) Game.founder.init(Game.state);
+    if (Game.founder && Game.founder.showVitals) Game.founder.showVitals();
 
     // Hide select, show game
     document.getElementById('archetype-select').classList.add('hidden');
@@ -67,6 +85,9 @@
     // Show desk by default
     Game.ui.showScene('desk');
 
+    // First end-of-day shouldn't fire on day 1 — give the player room to breathe.
+    if (Game.dayLoop && Game.dayLoop.initFor) Game.dayLoop.initFor(Game.state);
+
     // Start sim
     Game.sim.start();
 
@@ -74,6 +95,9 @@
     if (arch.openingFlavor) {
       Game.events.advise('COO', arch.openingFlavor);
     }
+
+    /* Welcome-to-the-Garage cinematic. Halts the sim until dismissed. */
+    if (Game.stages && Game.stages.showOpening) Game.stages.showOpening();
   };
 
   // Defer boot until DOM ready

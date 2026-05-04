@@ -130,6 +130,16 @@ Game.pivots = (function() {
     try { if (choice.effect) choice.effect(s); }
     catch (e) { console.error('Pivot effect failed:', pivotId, e); }
 
+    /* Founder energy — pivots are heavy. We don't reject on exhaustion
+       (pivots are mandatory once accepted), we just spend. */
+    if (Game.founder && Game.founder.spendEnergy) {
+      Game.founder.spendEnergy(25, 'pivot');
+    }
+    /* Trait reactions: Principled, Pragmatist, Hedger etc. */
+    if (Game.founder && Game.founder.applyTraitEffects) {
+      Game.founder.applyTraitEffects('pivot', { pivotId: pivotId, choiceIdx: choiceIdx });
+    }
+
     // Record + bookkeeping
     s.pivots[pivotId] = choiceIdx;
     s.stats.pivotCount = (s.stats.pivotCount || 0) + 1;

@@ -37,6 +37,10 @@ Game.training = (function() {
     let m = 1;
     if (state.flags['paradigm-sparse-moe']) m *= 0.7;
     if (state.flags['paradigm-synthetic-data-flywheel']) m *= 0.8;
+    /* Synergy / quirk-driven discount (lower = cheaper). */
+    if (typeof state.flags['synergy-pretrain-compute'] === 'number') {
+      m *= state.flags['synergy-pretrain-compute'];
+    }
     return m;
   }
 
@@ -49,6 +53,10 @@ Game.training = (function() {
   function postTrainTrustGainMult(state) {
     let m = 1;
     if (state.flags['paradigm-constitutional-self-critique']) m *= 1.4;
+    /* Synergy / quirk-driven post-train trust uplift. */
+    if (typeof state.flags['synergy-posttrain-trust'] === 'number') {
+      m *= state.flags['synergy-posttrain-trust'];
+    }
     return m;
   }
 
@@ -60,6 +68,10 @@ Game.training = (function() {
   function architectureParadigmChanceMult(state) {
     let m = 1;
     if (state.flags['paradigm-adversarial-red-team-loop']) m *= 1.25;
+    /* Synergy / quirk-driven paradigm-shift chance multiplier. */
+    if (typeof state.flags['synergy-arch-chance'] === 'number') {
+      m *= state.flags['synergy-arch-chance'];
+    }
     return m;
   }
 
@@ -171,6 +183,19 @@ Game.training = (function() {
       return 'continual-learning-toggle';
     }
 
+    /* Stage-gated parallelism: Garage allows 1, Lab 3, Org unbounded.
+       Defensive — if Game.stages is missing, fall back to existing behavior. */
+    if (Game.stages && Game.stages.getMaxParallelism) {
+      const maxParallel = Game.stages.getMaxParallelism(s);
+      if (s.trainingRuns.length >= maxParallel) {
+        Game.addLog(
+          `Only ${maxParallel === Number.POSITIVE_INFINITY ? '∞' : maxParallel} parallel training runs at this stage.`,
+          'warn'
+        );
+        return null;
+      }
+    }
+
     /* Resolve cost & gpu allocation */
     const cost = mode.cost(s);
     const requestedGpuIds = (opts.gpuIds && opts.gpuIds.length) ? opts.gpuIds.slice() : idleGpuIds(s);
@@ -203,6 +228,24 @@ Game.training = (function() {
     if (s.compute < minComputeToStart) {
       Game.addLog('Not enough Compute to begin this training run.', 'warn');
       return null;
+    }
+
+    /* Founder energy gate — runs *after* validation so the player only pays
+       energy on a run that's actually going to start. Pretraining is the
+       heaviest commit; if exhausted, refuse. Arch / post-train are lighter
+       and don't reject on exhaustion (just log fumes + bump stress). */
+    if (Game.founder && Game.founder.spendEnergy) {
+      let energyCost = 0;
+      if (mode.id === 'pretraining') energyCost = 15;
+      else if (mode.id === 'architecture') energyCost = 5;
+      else if (mode.id === 'post-training') energyCost = 3;
+      if (energyCost > 0) {
+        const ok = Game.founder.spendEnergy(energyCost, 'training-' + mode.id);
+        if (!ok && mode.id === 'pretraining') {
+          Game.addLog("You're too tired to start a training run today.", 'warn');
+          return null;
+        }
+      }
     }
 
     const tier = (typeof opts.modelTier === 'number') ? opts.modelTier : (s.capabilityTier + 1);

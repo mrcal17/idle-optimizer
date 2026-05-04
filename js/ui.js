@@ -66,8 +66,10 @@ Game.ui.showScene = function(sceneName) {
 Game.ui.refresh = function() {
   const s = Game.state;
   if (!s) return;
-  // HUD
-  document.getElementById('hud-day').textContent = Math.floor(s.day);
+  // HUD — day counter doubles as a subtle act indicator.
+  const stage = s.stage || 1;
+  const actStr = stage === 1 ? 'I' : (stage === 2 ? 'II' : 'III');
+  document.getElementById('hud-day').textContent = Math.floor(s.day) + ' · Act ' + actStr;
   document.getElementById('hud-compute').textContent = Game.ui.fmt(s.compute);
   document.getElementById('hud-money').textContent = '$' + Game.ui.fmt(s.money);
   document.getElementById('hud-capability').textContent = Game.ui.fmt(s.capability) + (s.capabilityTier ? ` · ${Game.tiers[s.capabilityTier].name}` : '');
@@ -90,6 +92,9 @@ Game.ui.refresh = function() {
   const worst = Math.min(s.trust, s.control, 100 - s.dependence);
   const doom = Math.max(0, (60 - worst) / 60);
   document.documentElement.style.setProperty('--doom', doom.toFixed(2));
+
+  // Founder vitals widget — defensive: render only if module + state present.
+  if (Game.founder && Game.founder.renderVitals) Game.founder.renderVitals();
 };
 
 Game.ui.refreshNav = function() {

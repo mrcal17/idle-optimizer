@@ -85,6 +85,40 @@ Game.makeInitialState = function makeInitialState() {
     // Scenes unlocked (tutorial scaffold)
     scenesUnlocked: { desk: true, office: false, operations: true, world: false, logs: false },
 
+    /* === Narrative-update fields (act / day-phase / founder) === */
+
+    // Stage / Act — derived from capability tier but stored so transitions
+    // can run a cinematic on change without recomputing every tick.
+    //   1 = Garage (Spark / Ember)
+    //   2 = Lab (Beacon / Lighthouse)
+    //   3 = Org (Pharos / Apex)
+    stage: 1,
+
+    // Day phase: 'working' (sim ticks normally) or 'end-of-day' (sim halts,
+    // decision-card panel is showing). Day-loop module owns transitions.
+    dayPhase: 'working',
+
+    // Day clock — fractional days accumulate; when it crosses an integer the
+    // day-loop module can fire the end-of-day panel. Different stages run
+    // at different tempos (1/wk/qtr).
+    lastDayBoundary: 1,
+
+    // The founder character — energy, mood, persistent traits accumulated
+    // through choices. Replaces "you are a faceless lab" with "you are a
+    // person." Drained by major actions; refilled by ending the day.
+    founder: {
+      portrait: null,        // emoji glyph, set on archetype apply
+      energy: 100,           // 0-100; major actions cost energy
+      maxEnergy: 100,        // grows with delegation upgrades
+      mood: 'focused',       // focused / tired / wired / shaken / serene
+      traits: [],            // accumulating perks from decision cards
+      stress: 0,             // 0-100; pressures push it up; rest brings it down
+    },
+
+    // End-of-day decision deck — populated by day-loop module.
+    pendingDayCards: [],
+    dayCardsTaken: [],   // history of choices for run-end recap
+
     // Logs (recent first)
     logs: [],
 

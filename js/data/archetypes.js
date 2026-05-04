@@ -16,6 +16,8 @@ Game.archetypes = {
     desc: 'Ship it, fix it later. Fastest scaling, hardest survival.',
     inspired: 'OpenAI / xAI archetype',
     startingDesc: '4 GPUs (3 general, 1 training-spec) · 1 Capabilities Engineer · $500 · Auto-OM unlocked',
+    founderPortrait: '🔥',
+    founderName: 'The Racer',
 
     // Sim coefficients (read in sim.js / autopilot)
     capabilityMod: 1.25,   // +25% capability gain
@@ -65,6 +67,8 @@ Game.archetypes = {
     desc: 'We can do this carefully. Slow to scale, hard to break.',
     inspired: 'Anthropic archetype',
     startingDesc: '2 GPUs (1 general, 1 research-spec) · Interp Researcher + Comms Lead · $300 · Reflective AP locked',
+    founderPortrait: '🧘',
+    founderName: 'The Steward',
 
     capabilityMod: 0.80,
     trustMod: 2.00,        // 2x trust recovery per spec
@@ -111,6 +115,8 @@ Game.archetypes = {
     desc: 'Released weights are forever. Free help, permanent stakes.',
     inspired: 'Meta / Mistral / open-weights ecosystem',
     startingDesc: '1 GPU (general) · solo founder · $250 · Community Compute meter',
+    founderPortrait: '🧑‍💻',
+    founderName: 'The Maintainer',
 
     capabilityMod: 1.00,
     trustMod: 1.10,        // openness buys some goodwill
@@ -151,6 +157,8 @@ Game.archetypes = {
     desc: 'Truth, then product. Narrow excellence, slow generality.',
     inspired: 'DeepMind / academic labs',
     startingDesc: '1 GPU (research-spec) · Senior PI + Postdoc · $200 · Lab Bench passive · Auto-Diplomat locked',
+    founderPortrait: '🦉',
+    founderName: 'The Scholar',
 
     capabilityMod: 0.95,
     trustMod: 1.30,

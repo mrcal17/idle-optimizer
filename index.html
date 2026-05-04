@@ -143,6 +143,54 @@
   </div>
 </div>
 
+<!-- Always-visible vitals widget (founder portrait + Trust/Control/Dependence) -->
+<div id="vitals-widget" class="hidden">
+  <div class="vw-portrait">
+    <span id="vw-portrait-glyph">👤</span>
+    <div class="vw-mood" id="vw-mood">focused</div>
+  </div>
+  <div class="vw-stack">
+    <div class="vw-energy">
+      <div class="vw-energy-label">ENERGY</div>
+      <div class="vw-energy-bar"><div class="vw-energy-fill" id="vw-energy-fill" style="width:100%"></div></div>
+    </div>
+    <div class="vw-vitals">
+      <div class="vw-vital" data-vital="trust"><span class="vv-lbl">T</span><div class="vv-bar"><div class="vv-fill good" id="vw-trust-fill" style="width:100%"></div></div></div>
+      <div class="vw-vital" data-vital="control"><span class="vv-lbl">C</span><div class="vv-bar"><div class="vv-fill good" id="vw-control-fill" style="width:100%"></div></div></div>
+      <div class="vw-vital" data-vital="dependence"><span class="vv-lbl">D</span><div class="vv-bar"><div class="vv-fill good" id="vw-dep-fill" style="width:0%"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- End-of-day overlay (Papers Please beat) — populated by js/dayLoop.js -->
+<div id="end-of-day-overlay" class="overlay hidden">
+  <div class="overlay-box wide eod-box">
+    <div class="eod-head">
+      <h2 id="eod-title">End of Day</h2>
+      <div class="eod-subtitle" id="eod-subtitle"></div>
+    </div>
+    <div class="overlay-scroll">
+      <div id="eod-recap" class="eod-recap"></div>
+      <div class="eod-cards-head">Pick what to handle:</div>
+      <div id="eod-cards" class="eod-cards"></div>
+    </div>
+    <div class="eod-actions">
+      <button id="eod-end-btn" class="action-btn primary" disabled>Sleep on it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stage-transition cinematic overlay — fires once per act crossing -->
+<div id="stage-overlay" class="overlay hidden stage-overlay">
+  <div class="stage-cinematic">
+    <div class="stage-act-label" id="stage-act-label">ACT II</div>
+    <h2 id="stage-title">The Lab</h2>
+    <div id="stage-flavor" class="flavor"></div>
+    <div class="stage-changes" id="stage-changes"></div>
+    <button id="stage-continue-btn" class="action-btn primary">Continue</button>
+  </div>
+</div>
+
 <!-- Module load order matters: data → sim → systems → scenes → main -->
 <script src="js/state.js"></script>
 <script src="js/config.js"></script>
@@ -157,6 +205,10 @@
 <script src="js/data/paradigms.js"></script>
 <script src="js/data/model-moments.js"></script>
 <script src="js/data/model-flavor.js"></script>
+<script src="js/data/day-cards.js"></script>
+<script src="js/data/personnel-quirks.js"></script>
+<script src="js/data/stage-cinematics.js"></script>
+<script src="js/data/founder-data.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/training.js"></script>
 <script src="js/modelIdentity.js"></script>
@@ -168,6 +220,10 @@
 <script src="js/autopilot.js"></script>
 <script src="js/endings.js"></script>
 <script src="js/labcard.js"></script>
+<script src="js/founder.js"></script>
+<script src="js/synergies.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/dayLoop.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/discovery.js"></script>
 <script src="js/scenes/desk.js"></script>

@@ -300,6 +300,8 @@ Game.deployments = (function () {
       if (s.flags['agent-products']) revenueMod *= 1.75;
       if (s.flags['agent-fleet-deployed']) revenueMod *= 3;
       if (s.flags['agent-fleet-pilot']) revenueMod *= 1.5;
+      /* Synergy / quirk-driven revenue uplift (set per tick by Game.synergies). */
+      if (typeof s.flags['synergy-revenue'] === 'number') revenueMod *= s.flags['synergy-revenue'];
 
       /* Per-GPU revenue:
          base + brand-driven uplift (consumer) + capability-driven uplift (enterprise).
@@ -355,6 +357,7 @@ Game.deployments = (function () {
     if (s && s.flags['agent-products']) revenueMod *= 1.75;
     if (s && s.flags['agent-fleet-deployed']) revenueMod *= 3;
     if (s && s.flags['agent-fleet-pilot']) revenueMod *= 1.5;
+    if (s && typeof s.flags['synergy-revenue'] === 'number') revenueMod *= s.flags['synergy-revenue'];
     let perGpu = domain.baseRevPerGpu;
     if (domain.brandScale) perGpu += brand * domain.brandScale;
     if (domain.capabilityScale) perGpu += cap * domain.capabilityScale;

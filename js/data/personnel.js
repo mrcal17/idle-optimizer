@@ -18,6 +18,10 @@ Game.personnelData = {
       desc: 'Snacks, supplies, scheduling, the glue that keeps the lab running. Gentle on Trust; the on-ramp for your first automation.',
       baseCost: 150,
       hint: 'Hire one early. Auto-OM unlocks the Vend moment.',
+      quirkPool: [
+        'compulsively-documents', 'snack-evangelist', 'founders-friend',
+        'caffeinated-throughput', 'compulsively-types',
+      ],
     },
     {
       key: 'capabilities',
@@ -26,6 +30,13 @@ Game.personnelData = {
       desc: 'Accelerates Compute -> Capability conversion. Worsens Control drift over time. The most efficient way to turn chips into model quality.',
       baseCost: 200,
       hint: 'Speed comes at a price. Pair with an interp researcher to balance.',
+      quirkPool: [
+        'paradigm-hunter', 'shipping-mindset', 'caffeinated-throughput',
+        'open-source-believer', 'compulsively-documents', 'founders-friend',
+        'distillation-specialist', 'ex-frontier', 'burnt-out',
+        'red-team-soul', 'continual-romantic',
+        'ghost-of-deepmind', 'eaccel-true-believer', 'synthetic-data-savant',
+      ],
     },
     {
       key: 'interpretability',
@@ -34,6 +45,13 @@ Game.personnelData = {
       desc: 'Slows Control drift, raises interp coverage, makes incidents previewable. Does not generate Revenue directly.',
       baseCost: 220,
       hint: 'Pure defensive hire. Indispensable past Beacon tier.',
+      quirkPool: [
+        'quiet-voice', 'eval-skeptic', 'compulsively-documents',
+        'founders-friend', 'compulsively-types',
+        'interpretability-pilled', 'big-e-reader', 'burnt-out',
+        'red-team-soul',
+        'mecha-hippie',
+      ],
     },
     {
       key: 'comms',
@@ -42,6 +60,12 @@ Game.personnelData = {
       desc: 'Boosts Trust recovery and softens incident severity. Writes the apology before the news cycle has crested.',
       baseCost: 180,
       hint: 'Worth their salary the first time an incident fires.',
+      quirkPool: [
+        'pr-crisis-energy', 'snack-evangelist', 'founders-friend',
+        'eval-skeptic', 'compulsively-documents', 'compulsively-types',
+        'knows-a-senator', 'big-e-reader', 'burnt-out', 'enterprise-rolodex',
+        'venture-whisperer', 'crisis-monk',
+      ],
     },
     {
       key: 'deployment',
@@ -50,6 +74,12 @@ Game.personnelData = {
       desc: 'Accelerates Capability -> Revenue. Tightens the inference fleet, opens new verticals. Adds a small dependence drift.',
       baseCost: 200,
       hint: 'The economic engine of mid-game.',
+      quirkPool: [
+        'shipping-mindset', 'caffeinated-throughput', 'open-source-believer',
+        'founders-friend', 'compulsively-documents',
+        'enterprise-rolodex', 'burnt-out',
+        'venture-whisperer',
+      ],
     },
     {
       key: 'senior-pi',
@@ -59,6 +89,13 @@ Game.personnelData = {
       baseCost: 350,
       archetypeOnly: 'research',
       hint: 'Lab Bench compounds when a Senior PI keeps the research GPU fed.',
+      quirkPool: [
+        'paradigm-hunter', 'quiet-voice', 'compulsively-documents',
+        'eval-skeptic', 'open-source-believer',
+        'interpretability-pilled', 'distillation-specialist', 'big-e-reader',
+        'ex-frontier', 'burnt-out', 'continual-romantic', 'compulsively-types',
+        'mecha-hippie', 'ghost-of-deepmind', 'crisis-monk', 'synthetic-data-savant',
+      ],
     },
   ],
 
@@ -82,7 +119,12 @@ Game.personnelData = {
     if (!role) return Infinity;
     const existing = state.personnel.filter(p => p.role === role.name).length;
     const growth = 1.35;
-    return Math.round(role.baseCost * Math.pow(growth, existing));
+    let cost = role.baseCost * Math.pow(growth, existing);
+    // Synergy / quirk hire-discount (set per tick by Game.synergies.tickEffects).
+    if (state.flags && typeof state.flags['synergy-hire-discount'] === 'number') {
+      cost *= state.flags['synergy-hire-discount'];
+    }
+    return Math.round(cost);
   },
 
   // Convenience automation-level descriptions (UI affordance).

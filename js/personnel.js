@@ -64,8 +64,35 @@ Game.personnel = (function() {
        and policy is auto, the player should not be hand-hiring (just a soft
        guard — autopilot itself calls this same fn). */
     s.money -= cost;
+    /* Founder energy spend — hiring takes time. Defensive: if the founder
+       module is absent or returns false, we still complete the hire — the
+       cost was already paid. */
+    if (Game.founder && Game.founder.spendEnergy) {
+      Game.founder.spendEnergy(5, 'hire');
+    }
     const p = Game.addPersonnel(role ? role.name : roleKey, 0);
-    Game.addLog(`Hired ${p.name} as ${p.role}. ($${cost})`, '');
+    /* Roll 1-2 quirks for the new hire (defensive: only if the data
+       module is present). */
+    if (Game.personnelQuirks && Game.personnelQuirks.rollFor && role) {
+      Game.personnelQuirks.rollFor(role.key, p);
+    } else {
+      p.quirks = p.quirks || [];
+    }
+    /* Surface the rolled personality in the hire log. */
+    let quirkSuffix = '';
+    if (Array.isArray(p.quirks) && p.quirks.length && Game.personnelQuirks && Game.personnelQuirks.byId) {
+      const names = p.quirks
+        .map(qid => Game.personnelQuirks.byId(qid))
+        .filter(q => q)
+        .map(q => q.name);
+      if (names.length) quirkSuffix = ` — ${names.join(', ')}`;
+    }
+    Game.addLog(`Hired ${p.name} as ${p.role}${quirkSuffix}. ($${cost})`, '');
+    /* Founder traits with hire trigger get a chance to react (e.g. Mentor,
+       Tightfisted, Recruiter). Pass cost so traits can refund / scale. */
+    if (Game.founder && Game.founder.applyTraitEffects) {
+      Game.founder.applyTraitEffects('hire', { cost: cost, person: p });
+    }
     /* Re-check beats after roster change */
     scriptedBeats();
     return p;
@@ -244,6 +271,25 @@ Game.personnel = (function() {
     return total;
   }
 
+  /* ---------- API: allQuirks ---------- */
+
+  /* Flat array of every active quirk metadata across the team. Used by
+     the office scene's chemistry panel and by autopilot heuristics. */
+  function allQuirks(state) {
+    state = state || Game.state;
+    if (!state || !Array.isArray(state.personnel)) return [];
+    if (!Game.personnelQuirks || !Game.personnelQuirks.byId) return [];
+    const out = [];
+    for (const p of state.personnel) {
+      if (!Array.isArray(p.quirks)) continue;
+      for (const qid of p.quirks) {
+        const q = Game.personnelQuirks.byId(qid);
+        if (q) out.push(q);
+      }
+    }
+    return out;
+  }
+
   /* ---------- expose ---------- */
 
   return {
@@ -254,6 +300,7 @@ Game.personnel = (function() {
     scriptedBeats,
     productivityFor,
     totalSalaryPerTick,
+    allQuirks,
   };
 
 })();

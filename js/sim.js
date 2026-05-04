@@ -16,9 +16,14 @@ Game.sim.stop = function() {
 
 Game.sim.frame = function() {
   if (!Game.state) return;
-  const speed = Game.state.paused || Game.state.pendingDecision ? 0 : Game.state.speed;
+  // Day-phase 'end-of-day' halts ticks until the player closes the panel.
+  // pendingDecision (pivot/incident gate) also halts. paused is manual pause.
+  const halted = Game.state.paused
+    || Game.state.pendingDecision
+    || Game.state.dayPhase === 'end-of-day';
+  const speed = halted ? 0 : Game.state.speed;
   for (let i = 0; i < speed; i++) Game.sim.tick();
-  // Always refresh UI even when paused, in case a panel needs to show pending overlays
+  // Always refresh UI even when paused so overlays show.
   if (Game.ui && Game.ui.refresh) Game.ui.refresh();
 };
 
@@ -27,6 +32,9 @@ Game.sim.tick = function() {
   const c = Game.config;
   s.tickCount++;
   s.day += c.daysPerTick;
+
+  /* === Team-chemistry effects (push composed multipliers onto state.flags) === */
+  if (Game.synergies && Game.synergies.tickEffects) Game.synergies.tickEffects();
 
   /* === GPU compute production ===
      Inference-spec GPUs no longer auto-generate revenue. Revenue now
@@ -95,6 +103,9 @@ Game.sim.tick = function() {
   // Trust recovery & drift
   let trustDelta = c.pressure.trustRecovery * (arch ? (arch.trustMod || 1) : 1);
   if (s.flags['aligned-mission']) trustDelta *= 1.5;
+  // Synergy / quirk-driven trust recovery boost (only on the positive recovery side).
+  const synergyTrustRec = (typeof s.flags['synergy-trust-recovery'] === 'number') ? s.flags['synergy-trust-recovery'] : 1;
+  if (trustDelta > 0) trustDelta *= synergyTrustRec;
   // Automation visibility hit
   const autoCount = s.personnel.filter(p => p.level >= 3).length;
   trustDelta -= autoCount * c.pressure.automationVisibilityHit;
@@ -107,6 +118,9 @@ Game.sim.tick = function() {
   let controlDelta = -capabilityGain * c.pressure.controlDriftPerCapability * 100 * (1 - interpCoverage) * (arch ? (arch.controlMod || 1) : 1);
   if (s.flags['aligned-mission']) controlDelta *= 0.5;
   if (s.flags['agent-fleet-deployed']) controlDelta *= 2;
+  // Synergy / quirk-driven control drift multiplier (only the negative drift portion).
+  const synergyCtrl = (typeof s.flags['synergy-control-mult'] === 'number') ? s.flags['synergy-control-mult'] : 1;
+  if (controlDelta < 0) controlDelta *= synergyCtrl;
   // Auto-personnel drift
   for (const p of s.personnel) controlDelta -= (c.personnel.autoControlDrift[p.level] || 0) * 0.01;
   // Active safety research counteracts
@@ -124,6 +138,9 @@ Game.sim.tick = function() {
   }
   if (s.flags['continual-learning']) depDelta += c.training.continualLearningDependence;
   if (s.flags['open-source-released']) depDelta += 0.06;
+  // Synergy / quirk-driven dependence multiplier on the accumulating side only.
+  const synergyDep = (typeof s.flags['synergy-dependence'] === 'number') ? s.flags['synergy-dependence'] : 1;
+  if (depDelta > 0) depDelta *= synergyDep;
   s.dependence = Math.max(0, Math.min(100, s.dependence + depDelta));
 
   /* === Continual learning passive effects === */
@@ -169,6 +186,26 @@ Game.sim.tick = function() {
   } else if (s.control <= 0 && !s.runEnded) {
     Game.endings.resolve('control-collapse');
   }
+
+  /* === Stage transition (Garage → Lab → Org) === */
+  // Stage is derived from capability tier but stored on state so the
+  // transition cinematic fires exactly once per crossing.
+  if (Game.stages && Game.stages.derive) {
+    const next = Game.stages.derive(s);
+    if (next !== s.stage) {
+      const prev = s.stage;
+      s.stage = next;
+      if (Game.stages.onTransition) Game.stages.onTransition(prev, next);
+    }
+  }
+
+  /* === Day-loop hook (end-of-day decision panel) === */
+  if (Game.dayLoop && Game.dayLoop.checkBoundary) {
+    Game.dayLoop.checkBoundary();
+  }
+
+  /* === Founder energy / mood drift === */
+  if (Game.founder && Game.founder.tick) Game.founder.tick();
 };
 
 Game.sim.checkTierUp = function() {

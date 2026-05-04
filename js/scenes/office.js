@@ -32,6 +32,11 @@ Game.scenes.office = {
         </div>
       </div>
 
+      <div class="panel team-chemistry" id="office-team-chemistry">
+        <h3>Team Chemistry</h3>
+        <div class="team-chemistry-body" id="office-team-chemistry-body"></div>
+      </div>
+
       <div class="panel">
         <h3>Models</h3>
         <div class="models-row" id="office-models-row"></div>
@@ -232,6 +237,43 @@ Game.scenes.office = {
     }
   },
 
+  _renderTeamChemistry(s) {
+    const body = document.getElementById('office-team-chemistry-body');
+    if (!body) return;
+    /* Hide the whole panel until at least one person is on staff. */
+    const panel = document.getElementById('office-team-chemistry');
+    if (panel) {
+      if (!s.personnel || !s.personnel.length) {
+        panel.classList.add('hidden');
+        return;
+      } else {
+        panel.classList.remove('hidden');
+      }
+    }
+    const active = (Game.synergies && Game.synergies.activeSynergies)
+      ? Game.synergies.activeSynergies(s)
+      : [];
+    if (!active.length) {
+      body.innerHTML = `<div class="team-chemistry-empty">No synergies yet.</div>`;
+      return;
+    }
+    body.innerHTML = active.map(syn => {
+      const pills = (Game.synergies && Game.synergies.summarizeEffect)
+        ? Game.synergies.summarizeEffect(syn.effect)
+        : [];
+      const pillHtml = pills.map(p =>
+        `<span class="synergy-pill ${p.good ? 'good' : 'bad'}">${p.text}</span>`
+      ).join('');
+      return `<div class="synergy-card">
+        <div class="synergy-card-head">
+          <span class="synergy-name">${syn.name}</span>
+        </div>
+        <div class="synergy-flavor">${syn.flavor || ''}</div>
+        <div class="synergy-pills">${pillHtml}</div>
+      </div>`;
+    }).join('');
+  },
+
   bindHandlers(container) {
     const buyBtn = container.querySelector('#office-buy-gpu');
     if (buyBtn) {
@@ -325,10 +367,25 @@ Game.scenes.office = {
           const levelLabel = (Game.personnelData && Game.personnelData.levelLabels)
             ? Game.personnelData.levelLabels[p.level] || ''
             : '';
+          /* Render small badge row for the rolled quirks. Each badge is
+             an emoji with title=name+desc so hovering reveals the lore. */
+          let quirkRow = '';
+          if (Array.isArray(p.quirks) && p.quirks.length && Game.personnelQuirks && Game.personnelQuirks.byId) {
+            const badges = p.quirks
+              .map(qid => Game.personnelQuirks.byId(qid))
+              .filter(q => q)
+              .map(q => {
+                const tip = `${q.name} — ${q.desc}`.replace(/"/g, '&quot;');
+                return `<span class="quirk-badge" title="${tip}">${q.icon}</span>`;
+              })
+              .join('');
+            if (badges) quirkRow = `<span class="quirk-row">${badges}</span>`;
+          }
           return `<div class="personnel-cell ${autoClass}" data-personnel-id="${p.id}" title="${levelLabel}">
             <span class="portrait">${icon}</span>
             <span class="name">${p.name}</span>
             <span class="role">${p.role}</span>
+            ${quirkRow}
           </div>`;
         }).join('');
 
@@ -364,6 +421,9 @@ Game.scenes.office = {
         });
       });
     }
+
+    // Team chemistry panel (active synergies)
+    this._renderTeamChemistry(s);
 
     // Models row
     const modelsRow = document.getElementById('office-models-row');

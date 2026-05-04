@@ -8,11 +8,17 @@ The north star: a single-screen, fully diegetic experience where every system ha
 
 ## ✅ Shipped this iteration
 
-- [x] Vitals widget repositioned to top-right (no longer collides with advisor bubble)
-- [x] Workstation HTML scaffold — room layer, desk surface, monitor with terminal, app dock
-- [x] Scene → app migration (Desk/Office/Operations/World/Logs now mount inside the terminal as TAP/TEAM/TRAIN/WIRE/LOGS apps)
-- [x] Slowed unlock pacing (apps and HUD stats earn their reveal — no more instant-spreadsheet feel)
-- [x] Stage-aware room palette (Garage warm / Lab cool / Org sparse)
+- [x] **STYLE_GUIDE.md** at repo root — single source of truth for palette, typography, icon system, window chrome, spacing
+- [x] **Palette refresh off the brown-Anthropic warm-tan.** Bone paper + platinum chrome + cool slate + a single signature persimmon used sparingly. Doom signaled by desaturation toward cool-grey, never by red.
+- [x] **Real Windows-95-lite OS chrome.** Each app mounts in an `.os-window` with chiseled platinum bevel, 22px titlebar (persimmon gradient when active), `[_][□][×]` chunky inverse-bevel buttons, 1px hard offset shadow. No rounded blobs.
+- [x] **Real taskbar replacing the dock.** 26px platinum strip: Start button (lab crest) on the left, running-app tabs in the middle (current = pressed-in inverse bevel), in-game day clock on the right. Locked apps live in the Start menu, not on the taskbar.
+- [x] **Icon system — emoji swept from UI.** ~15 emoji glyphs replaced with CSS/SVG pictograms inheriting `currentColor`: phone, handbook, mug, plant, dock icons (power/cpu/id/globe/scroll), lock, x/min/max chrome buttons. Player-content emojis (lab crest, model crests, founder portrait, archetype names, autopilot presets) preserved per STYLE_GUIDE §4.
+- [x] **Room aesthetic refresh.** Bone paper walls with diagonal-weave grain, platinum-framed window with mineral-sage glass and 2×2 mullions, muted-cork corkboard in chrome bezel, slate powder-coated desk with platinum top edge. Desk objects sit on the slate with soft elliptical shadows.
+- [x] **Vitals widget repositioned to top-right** (no longer collides with advisor bubble)
+- [x] **Workstation HTML scaffold** — room layer, desk surface, monitor with terminal
+- [x] **Scene → app migration** (Desk/Office/Operations/World/Logs now mount inside the terminal as TAP/TRAIN/TEAM/WIRE/LOGS apps)
+- [x] **Slowed unlock pacing** (apps and HUD stats earn their reveal — no more instant-spreadsheet feel)
+- [x] **Stage-aware room palette** (Garage warm / Lab cool / Org sparse) — implemented as subtle paper warmth shifts, not wholesale palette swaps
 
 ---
 
@@ -42,11 +48,15 @@ The north star: a single-screen, fully diegetic experience where every system ha
 - [ ] Apps gain "windows" instead of full-screen — multitasking in late game
 - [ ] Late-game terminal degradation — Control loss visibly corrupts the UI (glyph swaps, color shifts)
 
-### App dock
-- [x] Dock icons unlock with one-shot pulse animation
-- [ ] Dock badges for unread (incident in LOGS, pivot pending, model finished training)
-- [ ] App-specific status colors on the dock (TRAIN red while training, WIRE pulsing while deploying)
-- [ ] Drag-to-reorder dock icons (player ownership)
+### App dock → Taskbar
+- [x] Dock retired in favor of OS-style taskbar
+- [x] Dock icons unlock with one-shot pulse animation (now lives on Start-menu items)
+- [ ] Taskbar badges for unread (incident in LOGS, pivot pending, model finished training)
+- [ ] App-specific status colors on the taskbar tabs (TRAIN persimmon while training, WIRE muted-mineral while deploying)
+- [ ] Drag-to-reorder taskbar tabs (player ownership)
+- [ ] **Multi-window stacking** — currently single-window mode. v2.1 stretch: each app opens its own window, drag titlebars to move, z-index stacking, [_] minimize hides to taskbar
+- [ ] Window snap zones (left/right halves)
+- [ ] **Window content resize observers** — apps' inner layouts respond to actual window size, not just viewport
 
 ---
 
@@ -268,6 +278,20 @@ The user feedback was that the early game ramped too fast. These are the levers 
 - [ ] Achievements/Cabinet (deferred — out of scope for v1.0 per spec)
 
 ---
+
+## 🎨 Style discipline (ongoing)
+
+The STYLE_GUIDE.md is the binding spec. Everything new must conform.
+
+- [ ] **Audit pass on existing modals** — pivot/incident/ending overlays still use older styling that hasn't been re-grounded against the new palette
+- [ ] **Typography pass** — body still uses system stack but display headings could use a real serif (Cormorant Garamond) when web fonts come in v1.5
+- [ ] **Sweep remaining emojis** in scene-internal HTML (office personnel quirk badges, autopilot preset icons, GPU spec icons inside the operations panel) — these are functional UI even if they live inside a player-content scene
+- [ ] **Status indicators** — some places still use colored dots without the canonical `.status-dot` class
+- [ ] **Animation discipline review** — find any remaining bounces / pulses / glows that weren't sanctioned
+- [ ] **Spacing rhythm sweep** — every magic number that isn't a multiple of 4px needs a justification or fix
+- [ ] **Run a contrast audit** — some ink-mute-on-paper combinations are below WCAG AA at 13px; review and adjust
+- [ ] **Design tokens for the alarm state** — the `--alarm` variable is defined but underused; alarm states should have a coherent visual language
+- [ ] **Per-stage transitions** — the cross-fade between stages currently hard-cuts the room palette; a 1.5s ease would feel right
 
 ## 🚫 Explicitly out of scope (don't add without re-discussion)
 

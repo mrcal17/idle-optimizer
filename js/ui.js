@@ -10,11 +10,30 @@ Game.ui = {
   _tickerIntervalId: null,
   _navWired: false,
   _speedWired: false,
+  _osWired: false,
+  _startMenuOpen: false,
+};
+
+/* App registry — single source of truth for the new taskbar / start menu.
+   Data-scene + data-app-id mirror the legacy #app-dock buttons so any code
+   that still queries those keeps working. The desk scene is the "TAP" app
+   and is the home/default app the Close button returns to. */
+Game.ui.APPS = [
+  { id: 'tap',   scene: 'desk',       label: 'TAP',   title: 'TAP.app — desk',         iconClass: 'icon-power'  },
+  { id: 'train', scene: 'operations', label: 'TRAIN', title: 'TRAIN.app — operations', iconClass: 'icon-cpu'    },
+  { id: 'team',  scene: 'office',     label: 'TEAM',  title: 'TEAM.app — office',      iconClass: 'icon-id'     },
+  { id: 'wire',  scene: 'world',      label: 'WIRE',  title: 'WIRE.app — world',       iconClass: 'icon-globe'  },
+  { id: 'logs',  scene: 'logs',       label: 'LOGS',  title: 'LOGS.app — timeline',    iconClass: 'icon-scroll' },
+];
+
+Game.ui.HOME_SCENE = 'desk';
+
+Game.ui._appByScene = function(sceneName) {
+  return Game.ui.APPS.find(a => a.scene === sceneName) || Game.ui.APPS[0];
 };
 
 Game.ui.boot = function() {
-  // Wire app-dock (the new workstation app launcher) — replaces scene-nav.
-  // Each .dock-btn carries data-scene matching the existing scene module.
+  // Wire app-dock (legacy launcher — hidden but back-compat) + new taskbar.
   if (!Game.ui._navWired) {
     document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -32,6 +51,9 @@ Game.ui.boot = function() {
     });
     Game.ui._navWired = true;
   }
+
+  // Wire the OS-window chrome + taskbar + start menu.
+  Game.ui._wireOsChrome();
 
   // Wire speed controls
   if (!Game.ui._speedWired) {
@@ -59,20 +81,39 @@ Game.ui.boot = function() {
 };
 
 Game.ui.showScene = function(sceneName) {
+  const prev = Game.ui.activeScene;
   Game.ui.activeScene = sceneName;
-  document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden'));
-  const target = document.getElementById('scene-' + sceneName);
-  if (target) target.classList.remove('hidden');
-  // Mirror active state on both the new app-dock and the legacy scene-nav.
+  const appWindow = document.getElementById('app-window');
+  const swap = () => {
+    document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden'));
+    const target = document.getElementById('scene-' + sceneName);
+    if (target) target.classList.remove('hidden');
+    if (Game.scenes && Game.scenes[sceneName] && Game.scenes[sceneName].render) {
+      Game.scenes[sceneName].render();
+    }
+  };
+  // Cross-fade window body when switching apps. Fade is 0.25s ease (CSS).
+  if (appWindow && prev !== sceneName) {
+    appWindow.classList.add('is-switching');
+    setTimeout(() => {
+      swap();
+      // Next frame: drop the class to trigger fade-back-in.
+      requestAnimationFrame(() => appWindow.classList.remove('is-switching'));
+    }, 120);
+  } else {
+    swap();
+  }
+  // Mirror active state on legacy app-dock + scene-nav (back-compat).
   document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.scene === sceneName);
   });
   document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.scene === sceneName);
   });
-  if (Game.scenes && Game.scenes[sceneName] && Game.scenes[sceneName].render) {
-    Game.scenes[sceneName].render();
-  }
+  // Update the OS-window title + taskbar tab active state.
+  Game.ui._syncOsChrome();
+  // Close the start menu if it was open.
+  Game.ui._setStartMenu(false);
 };
 
 Game.ui.refresh = function() {
@@ -112,12 +153,18 @@ Game.ui.refresh = function() {
      environmental decay tied to pressures). All defensive. */
   if (Game.workstation && Game.workstation.tick) Game.workstation.tick();
   if (Game.room && Game.room.tick) Game.room.tick();
+
+  // OS taskbar: clock (in-game day) + start crest (from state.crest).
+  const clock = document.getElementById('taskbar-clock');
+  if (clock) clock.textContent = 'Day ' + Math.floor(s.day);
+  const crest = document.getElementById('start-crest');
+  if (crest && s.crest) crest.textContent = s.crest;
 };
 
 Game.ui.refreshNav = function() {
   const s = Game.state;
   if (!s) return;
-  // Apply unlock state to both the legacy scene-nav and the new app-dock.
+  // Apply unlock state to legacy scene-nav and legacy app-dock (back-compat).
   document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
     const unlocked = s.scenesUnlocked[btn.dataset.scene];
     btn.classList.toggle('locked', !unlocked);
@@ -132,6 +179,10 @@ Game.ui.refreshNav = function() {
       setTimeout(() => btn.classList.remove('dock-just-unlocked'), 1700);
     }
   });
+  // Rebuild the new taskbar (only unlocked apps appear) + start menu (all apps).
+  Game.ui._renderTaskbarTabs();
+  Game.ui._renderStartMenu();
+  Game.ui._syncOsChrome();
 };
 
 Game.ui.refreshLogs = function() {
@@ -190,6 +241,136 @@ Game.ui.openOverlay = function(id) {
 Game.ui.closeOverlay = function(id) {
   const o = document.getElementById(id);
   if (o) o.classList.add('hidden');
+};
+
+/* =============================================================
+   OS-window chrome + taskbar + start menu wiring
+   Single-window mode in v2: only one app open at a time. The
+   taskbar shows running (= unlocked) apps. The start menu lists
+   ALL apps (locked ones blocked from clicking).
+   ============================================================= */
+Game.ui._wireOsChrome = function() {
+  if (Game.ui._osWired) return;
+
+  // Close button: returns to TAP.app (the desk scene).
+  const closeBtn = document.getElementById('os-btn-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      Game.ui.showScene(Game.ui.HOME_SCENE);
+    });
+  }
+  // Min/Max are no-ops in v2 (disabled), but defensively block clicks too.
+  ['os-btn-min', 'os-btn-max'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', e => e.preventDefault());
+  });
+
+  // Start button: toggle start menu open/closed.
+  const startBtn = document.getElementById('start-btn');
+  if (startBtn) {
+    startBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      Game.ui._setStartMenu(!Game.ui._startMenuOpen);
+    });
+  }
+  // Click anywhere outside the start menu/start button closes the menu.
+  document.addEventListener('click', e => {
+    if (!Game.ui._startMenuOpen) return;
+    const menu = document.getElementById('start-menu');
+    const sb = document.getElementById('start-btn');
+    if (!menu) return;
+    if (menu.contains(e.target) || (sb && sb.contains(e.target))) return;
+    Game.ui._setStartMenu(false);
+  });
+
+  Game.ui._osWired = true;
+
+  // Initial render so the taskbar appears even before refresh() fires.
+  Game.ui._renderTaskbarTabs();
+  Game.ui._renderStartMenu();
+  Game.ui._syncOsChrome();
+};
+
+Game.ui._setStartMenu = function(open) {
+  Game.ui._startMenuOpen = !!open;
+  const menu = document.getElementById('start-menu');
+  const sb = document.getElementById('start-btn');
+  if (menu) menu.classList.toggle('hidden', !open);
+  if (sb) {
+    sb.classList.toggle('is-open', !!open);
+    sb.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+};
+
+/* Render the running-app tabs in the middle of the taskbar.
+   Only unlocked apps appear (locked apps aren't "running"). */
+Game.ui._renderTaskbarTabs = function() {
+  const host = document.getElementById('taskbar-tabs');
+  if (!host) return;
+  const s = Game.state;
+  const active = Game.ui.activeScene;
+  host.innerHTML = '';
+  Game.ui.APPS.forEach(app => {
+    const unlocked = !s || (s.scenesUnlocked && s.scenesUnlocked[app.scene]);
+    if (!unlocked) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'taskbar-tab' + (app.scene === active ? ' is-active' : '');
+    btn.dataset.scene = app.scene;
+    btn.dataset.appId = app.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', app.scene === active ? 'true' : 'false');
+    btn.innerHTML = `<span class="tt-icon"><span class="icon ${app.iconClass}"></span></span><span class="tt-label">${app.label}</span>`;
+    btn.addEventListener('click', () => Game.ui.showScene(app.scene));
+    host.appendChild(btn);
+  });
+};
+
+/* Render the start-menu list (all apps; locked ones rendered with a lock
+   icon and not clickable). */
+Game.ui._renderStartMenu = function() {
+  const host = document.getElementById('start-menu-items');
+  if (!host) return;
+  const s = Game.state;
+  host.innerHTML = '';
+  Game.ui.APPS.forEach(app => {
+    const unlocked = !s || (s.scenesUnlocked && s.scenesUnlocked[app.scene]);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'start-menu-item' + (unlocked ? '' : ' is-locked');
+    item.dataset.scene = app.scene;
+    item.dataset.appId = app.id;
+    item.setAttribute('role', 'menuitem');
+    if (!unlocked) item.disabled = true;
+    item.innerHTML = `
+      <span class="smi-icon"><span class="icon ${app.iconClass}"></span></span>
+      <span class="smi-label">${app.label}.app</span>
+      ${unlocked ? '' : '<span class="smi-lock"><span class="icon icon-lock"></span></span>'}
+    `;
+    if (unlocked) {
+      item.addEventListener('click', () => {
+        Game.ui.showScene(app.scene);
+        Game.ui._setStartMenu(false);
+      });
+    }
+    host.appendChild(item);
+  });
+};
+
+/* Sync the OS-window title + active-tab state to the active scene. */
+Game.ui._syncOsChrome = function() {
+  const app = Game.ui._appByScene(Game.ui.activeScene);
+  const title = document.getElementById('os-title');
+  if (title && app) title.textContent = app.title;
+  // Active OS window is always considered active in v2 (single window).
+  const win = document.getElementById('os-window');
+  if (win) win.classList.add('os-window-active');
+  // Active tab class.
+  document.querySelectorAll('#taskbar-tabs .taskbar-tab').forEach(t => {
+    const isActive = t.dataset.scene === Game.ui.activeScene;
+    t.classList.toggle('is-active', isActive);
+    t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
 };
 
 /* Apply archetype palette */

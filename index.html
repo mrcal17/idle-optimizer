@@ -76,18 +76,18 @@
   <!-- Desk surface — foreground band with on-desk objects -->
   <div id="desk-layer" class="desk-layer">
     <div class="desk-object phone" id="desk-phone" title="Phone (only rings when it must)">
-      <span class="phone-glyph">☎</span>
+      <span class="icon icon-phone"></span>
       <span class="phone-ring-ind" id="phone-ring-ind"></span>
     </div>
     <div class="desk-object handbook" id="desk-handbook" title="Lab Director's Handbook">
-      <span class="book-glyph">📕</span>
+      <span class="icon icon-book"></span>
     </div>
     <div class="desk-object mug" id="desk-mug" title="Coffee">
-      <span class="mug-glyph">☕</span>
+      <span class="icon icon-mug"></span>
       <span class="mug-steam" id="mug-steam">·</span>
     </div>
     <div class="desk-object plant" id="desk-plant" title="Plant">
-      <span class="plant-glyph" id="plant-glyph">🌿</span>
+      <span class="icon icon-plant" id="plant-glyph"></span>
     </div>
   </div>
 
@@ -98,36 +98,76 @@
       <span class="monitor-label">FOUNDRY-OS v0.1</span>
     </div>
     <div class="monitor-screen" id="monitor-screen">
-      <!-- Terminal: app launcher (icons grid) + active app window -->
+      <!-- Terminal: chrome OS framework holding the active app window + taskbar -->
       <div id="terminal" class="terminal">
-        <div id="terminal-header" class="terminal-header">
+        <!-- Hidden legacy header (kept for back-compat with code that may
+             still query #terminal-header / #term-prompt). The visible title
+             is now the OS-window titlebar below. -->
+        <div id="terminal-header" class="terminal-header hidden">
           <span class="term-prompt" id="term-prompt">foundry@lab:~$</span>
           <span class="term-status" id="term-status"></span>
         </div>
-        <!-- Active app window (replaces the old 5-scene divs) -->
-        <div id="app-window" class="app-window">
-          <section id="scene-desk" class="scene app-scene"></section>
-          <section id="scene-office" class="scene app-scene hidden"></section>
-          <section id="scene-operations" class="scene app-scene hidden"></section>
-          <section id="scene-world" class="scene app-scene hidden"></section>
-          <section id="scene-logs" class="scene app-scene hidden"></section>
+
+        <!-- The OS window — chrome wrapper around the active app body. -->
+        <div id="os-window" class="os-window os-window-active">
+          <div class="os-titlebar" id="os-titlebar">
+            <span class="os-title" id="os-title">TAP.app — desk</span>
+            <span class="os-window-buttons">
+              <button class="os-btn os-btn-min" id="os-btn-min" disabled aria-label="Minimize" title="Minimize"><span class="icon icon-min icon-sm"></span></button>
+              <button class="os-btn os-btn-max" id="os-btn-max" disabled aria-label="Maximize" title="Maximize"><span class="icon icon-max icon-sm"></span></button>
+              <button class="os-btn os-btn-close" id="os-btn-close" aria-label="Close" title="Close"><span class="icon icon-x icon-sm"></span></button>
+            </span>
+          </div>
+          <div id="app-window" class="app-window os-window-body">
+            <section id="scene-desk" class="scene app-scene"></section>
+            <section id="scene-office" class="scene app-scene hidden"></section>
+            <section id="scene-operations" class="scene app-scene hidden"></section>
+            <section id="scene-world" class="scene app-scene hidden"></section>
+            <section id="scene-logs" class="scene app-scene hidden"></section>
+          </div>
         </div>
-        <!-- App launcher dock at the bottom of the terminal screen -->
-        <nav id="app-dock" class="app-dock">
+
+        <!-- Taskbar: Start button on the left, running-app tabs in the middle,
+             clock on the right. Locked apps don't appear here. -->
+        <nav id="taskbar" class="taskbar" role="toolbar" aria-label="Taskbar">
+          <button id="start-btn" class="start-btn" type="button" aria-haspopup="true" aria-expanded="false">
+            <span class="start-crest" id="start-crest">◆</span>
+            <span class="start-label">START</span>
+          </button>
+          <div id="taskbar-tabs" class="taskbar-tabs" role="tablist"></div>
+          <div id="taskbar-clock" class="taskbar-clock" aria-live="polite">Day 1</div>
+        </nav>
+
+        <!-- Start menu (popover above the Start button). All apps listed,
+             locked ones rendered with the lock icon and not clickable. -->
+        <div id="start-menu" class="start-menu hidden" role="menu" aria-label="All apps">
+          <div class="start-menu-head">FOUNDRY-OS</div>
+          <div id="start-menu-items" class="start-menu-items"></div>
+        </div>
+
+        <!-- LEGACY app-dock — kept in DOM for back-compat but hidden.
+             Data attributes (data-scene, data-app-id) are mirrored onto the
+             new taskbar tabs and start-menu items. -->
+        <nav id="app-dock" class="app-dock app-dock-legacy">
           <button data-scene="desk" class="dock-btn active" data-app-id="tap">
-            <span class="dock-icon">⚡</span><span class="dock-label">TAP</span>
+            <span class="dock-icon"><span class="icon icon-power"></span></span><span class="dock-label">TAP</span>
+            <span class="dock-lock-badge"><span class="icon icon-lock"></span></span>
           </button>
           <button data-scene="operations" class="dock-btn dock-locked" data-app-id="train">
-            <span class="dock-icon">⚙</span><span class="dock-label">TRAIN</span>
+            <span class="dock-icon"><span class="icon icon-cpu"></span></span><span class="dock-label">TRAIN</span>
+            <span class="dock-lock-badge"><span class="icon icon-lock"></span></span>
           </button>
           <button data-scene="office" class="dock-btn dock-locked" data-app-id="team">
-            <span class="dock-icon">🪪</span><span class="dock-label">TEAM</span>
+            <span class="dock-icon"><span class="icon icon-id"></span></span><span class="dock-label">TEAM</span>
+            <span class="dock-lock-badge"><span class="icon icon-lock"></span></span>
           </button>
           <button data-scene="world" class="dock-btn dock-locked" data-app-id="wire">
-            <span class="dock-icon">🌐</span><span class="dock-label">WIRE</span>
+            <span class="dock-icon"><span class="icon icon-globe"></span></span><span class="dock-label">WIRE</span>
+            <span class="dock-lock-badge"><span class="icon icon-lock"></span></span>
           </button>
           <button data-scene="logs" class="dock-btn dock-locked" data-app-id="logs">
-            <span class="dock-icon">📜</span><span class="dock-label">LOGS</span>
+            <span class="dock-icon"><span class="icon icon-scroll"></span></span><span class="dock-label">LOGS</span>
+            <span class="dock-lock-badge"><span class="icon icon-lock"></span></span>
           </button>
         </nav>
       </div>
@@ -250,8 +290,8 @@
 
 <!-- Always-visible vitals widget (founder portrait + Trust/Control/Dependence) -->
 <div id="vitals-widget" class="hidden">
-  <div class="vw-portrait">
-    <span id="vw-portrait-glyph">👤</span>
+  <div class="vw-portrait" data-keep-emoji>
+    <span class="vw-portrait-frame"><span id="vw-portrait-glyph">👤</span></span>
     <div class="vw-mood" id="vw-mood">focused</div>
   </div>
   <div class="vw-stack">
@@ -297,6 +337,7 @@
 </div>
 
 <!-- Module load order matters: data → sim → systems → scenes → main -->
+<script src="js/icons.js"></script>
 <script src="js/state.js"></script>
 <script src="js/config.js"></script>
 <script src="js/data/archetypes.js"></script>

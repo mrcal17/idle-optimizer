@@ -322,7 +322,7 @@ Game.scenes.operations = {
         : `GPU #${g.id} — ${m.full} · click to cycle`;
       return `<div class="${classes.join(' ')}" data-gpu-id="${g.id}" data-locked="${locked ? '1' : '0'}" title="${title}">
         <span class="gsc-id">#${g.id}</span>
-        ${locked ? '<span class="gsc-lock" aria-label="locked">🔒</span>' : ''}
+        ${locked ? '<span class="gsc-lock" aria-label="locked">' + (window.Game && Game.icons ? Game.icons.markup('lock', 'icon-sm') : '') + '</span>' : ''}
         <span class="gsc-icon">${m.icon}</span>
         <span class="gsc-badge">${m.label}</span>
       </div>`;

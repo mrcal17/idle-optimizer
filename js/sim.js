@@ -18,11 +18,14 @@ Game.sim.frame = function() {
   if (!Game.state) return;
   // Day-phase 'end-of-day' halts ticks until the player closes the panel.
   // pendingDecision (pivot/incident gate) also halts. paused is manual pause.
-  const halted = Game.state.paused
+  const isHalted = () => Game.state.paused
     || Game.state.pendingDecision
     || Game.state.dayPhase === 'end-of-day';
-  const speed = halted ? 0 : Game.state.speed;
-  for (let i = 0; i < speed; i++) Game.sim.tick();
+  const speed = isHalted() ? 0 : Game.state.speed;
+  for (let i = 0; i < speed; i++) {
+    Game.sim.tick();
+    if (isHalted()) break;
+  }
   // Always refresh UI even when paused so overlays show.
   if (Game.ui && Game.ui.refresh) Game.ui.refresh();
 };

@@ -115,7 +115,7 @@ Game.makeInitialState = function makeInitialState() {
       stress: 0,             // 0-100; pressures push it up; rest brings it down
     },
 
-    // End-of-day decision deck — populated by day-loop module.
+    // End-of-day decision deck — card id list populated by day-loop module.
     pendingDayCards: [],
     dayCardsTaken: [],   // history of choices for run-end recap
 

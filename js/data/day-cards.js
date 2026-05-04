@@ -22,13 +22,28 @@ window.Game = window.Game || {};
   function bumpTrust(s, n)   { s.trust = clamp01(s.trust + n); }
   function bumpControl(s, n) { s.control = clamp01(s.control + n); }
   function bumpDep(s, n)     { s.dependence = clamp01(s.dependence + n); }
+
+  function traitId(t) {
+    return String(t || '').trim().toLowerCase().replace(/\s+/g, '-');
+  }
+
   function addTrait(s, t) {
     if (!s.founder) return;
+    const id = traitId(t);
+    if (!id) return;
+    if (Game.founder && Game.founder.gainTrait && Game.state === s) {
+      Game.founder.gainTrait(id);
+      return;
+    }
     s.founder.traits = s.founder.traits || [];
-    if (!s.founder.traits.includes(t)) s.founder.traits.push(t);
+    if (!s.founder.traits.includes(id)) s.founder.traits.push(id);
   }
   function hasTrait(s, t) {
-    return !!(s.founder && s.founder.traits && s.founder.traits.includes(t));
+    const id = traitId(t);
+    return !!(s.founder && s.founder.traits && (
+      s.founder.traits.includes(id) ||
+      s.founder.traits.includes(t)
+    ));
   }
   function bumpStress(s, n) {
     if (!s.founder) return;

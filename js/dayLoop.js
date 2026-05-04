@@ -85,9 +85,10 @@ window.Game = window.Game || {};
       };
 
       s.dayPhase = 'end-of-day';
-      s.pendingDayCards = (Game.dayCardData && Game.dayCardData.pickFor)
+      const drawnCards = (Game.dayCardData && Game.dayCardData.pickFor)
         ? Game.dayCardData.pickFor(s, 3)
         : [];
+      s.pendingDayCards = drawnCards.map(card => card && card.id).filter(Boolean);
 
       Game.dayLoop.renderOverlay();
     },
@@ -108,7 +109,6 @@ window.Game = window.Game || {};
 
       const dayInt = Math.floor(s.day);
       const length = Game.dayLoop.dayLength(s);
-      const limit  = Game.dayLoop.pickLimit(s);
 
       // --- Header ---
       if (titleEl) {
@@ -162,7 +162,8 @@ window.Game = window.Game || {};
 
       // --- Cards ---
       cardsEl.innerHTML = '';
-      const cards = s.pendingDayCards || [];
+      const cards = pendingCards(s);
+      const required = requiredPicks(s, cards);
       if (!cards.length) {
         const empty = document.createElement('div');
         empty.className = 'eod-card disabled';
@@ -201,12 +202,12 @@ window.Game = window.Game || {};
           actionsEl.insertBefore(counter, endBtn);
         }
         const taken = countTakenThisRound(s);
-        counter.textContent = `Picked ${taken}/${limit}`;
+        counter.textContent = `Picked ${taken}/${required}`;
       }
       if (endBtn) {
         const taken = countTakenThisRound(s);
-        endBtn.disabled = taken < limit;
-        endBtn.textContent = taken >= limit ? 'Sleep on it' : `Pick ${limit - taken} more`;
+        endBtn.disabled = taken < required;
+        endBtn.textContent = taken >= required ? 'Sleep on it' : `Pick ${required - taken} more`;
       }
 
       Game.ui.openOverlay('end-of-day-overlay');
@@ -216,10 +217,11 @@ window.Game = window.Game || {};
     takeCard: function(cardId) {
       const s = Game.state;
       if (!s) return;
-      const card = (s.pendingDayCards || []).find(c => c && c.id === cardId);
+      const cards = pendingCards(s);
+      const card = cards.find(c => c && c.id === cardId);
       if (!card) return;
-      const limit = Game.dayLoop.pickLimit(s);
-      if (countTakenThisRound(s) >= limit) return;
+      const required = requiredPicks(s, cards);
+      if (countTakenThisRound(s) >= required) return;
       // Already taken this round?
       if ((s.dayCardsTaken || []).some(t => t && t.id === cardId && t._thisRound)) return;
 
@@ -277,6 +279,29 @@ window.Game = window.Game || {};
   /* === Helpers === */
   function countTakenThisRound(s) {
     return (s.dayCardsTaken || []).filter(t => t && t._thisRound).length;
+  }
+
+  function cardById(cardId) {
+    const list = Game.dayCardData && Game.dayCardData.list;
+    if (!Array.isArray(list)) return null;
+    return list.find(card => card && card.id === cardId) || null;
+  }
+
+  function pendingCards(s) {
+    const ids = (s.pendingDayCards || []).map(ref => {
+      if (!ref) return null;
+      return (typeof ref === 'string') ? ref : ref.id;
+    }).filter(Boolean);
+    if (ids.length !== (s.pendingDayCards || []).length ||
+        ids.some((id, i) => id !== s.pendingDayCards[i])) {
+      s.pendingDayCards = ids;
+    }
+    return ids.map(cardById).filter(Boolean);
+  }
+
+  function requiredPicks(s, cards) {
+    const available = Array.isArray(cards) ? cards.length : pendingCards(s).length;
+    return Math.min(Game.dayLoop.pickLimit(s), available);
   }
 
   function fmtNum(n) {

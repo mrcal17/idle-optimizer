@@ -260,12 +260,36 @@ Game.events = (function() {
     const s = Game.state;
     if (!s || !incident) return;
 
-    // Apply the immediate effect, if any
-    const trustBefore = s.trust;
+    // Apply the immediate effect, then route pressure deltas through
+    // mitigation hooks. Non-pressure side effects from the incident remain.
+    const before = {
+      trust: s.trust,
+      control: s.control,
+      dependence: s.dependence,
+    };
     try { if (incident.effect) incident.effect(s); }
     catch (e) { console.error('Incident effect failed:', incident.id, e); }
-    if ((s.flags['trust-event-shield'] || 0) > 0 && s.trust < trustBefore) {
-      s.trust = trustBefore;
+    const ctx = {
+      incident,
+      trustDelta: finiteDelta(s.trust, before.trust),
+      controlDelta: finiteDelta(s.control, before.control),
+      dependenceDelta: finiteDelta(s.dependence, before.dependence),
+    };
+    const severityMult = (typeof s.flags['synergy-incident-severity'] === 'number')
+      ? s.flags['synergy-incident-severity']
+      : 1;
+    if (ctx.trustDelta < 0) ctx.trustDelta *= severityMult;
+    if (ctx.controlDelta < 0) ctx.controlDelta *= severityMult;
+    if (ctx.dependenceDelta > 0) ctx.dependenceDelta *= severityMult;
+    if (Game.founder && Game.founder.applyTraitEffects) {
+      Game.founder.applyTraitEffects('incident', ctx);
+    }
+    s.trust = clampPressure(before.trust + ctx.trustDelta);
+    s.control = clampPressure(before.control + ctx.controlDelta);
+    s.dependence = clampPressure(before.dependence + ctx.dependenceDelta);
+
+    if ((s.flags['trust-event-shield'] || 0) > 0 && s.trust < before.trust) {
+      s.trust = before.trust;
       s.flags['trust-event-shield'] -= 1;
       Game.addLog('Defense contract shield absorbed one Trust hit.', 'incident');
     }
@@ -358,6 +382,17 @@ Game.events = (function() {
     if (overlay) overlay.classList.add('hidden');
 
     if (Game.ui && Game.ui.refresh) Game.ui.refresh();
+  }
+
+  function finiteDelta(after, before) {
+    if (typeof after !== 'number' || typeof before !== 'number') return 0;
+    if (!isFinite(after) || !isFinite(before)) return 0;
+    return after - before;
+  }
+
+  function clampPressure(v) {
+    if (!isFinite(v)) return 0;
+    return Math.max(0, Math.min(100, v));
   }
 
   return {

@@ -1785,22 +1785,24 @@ html[data-stage="3"] .panel { padding: 16px 18px; }
 html[data-stage="3"] .panel h2 { letter-spacing: 2.5px; opacity: 0.7; }
 
 /* =============================================================
-   Vitals Widget — always visible bottom-right. Founder + vitals.
+   Vitals Widget — top-right, out of the advisor bubble's path.
+   Always present but visually quiet; becomes diegetic over time.
    ============================================================= */
 #vitals-widget {
   position: fixed;
-  bottom: 64px;
+  top: 56px;             /* below the HUD bar */
   right: 12px;
-  z-index: 80;
+  z-index: 70;           /* below modals (1000), above scene content */
   display: flex;
   gap: 10px;
-  padding: 8px 12px;
-  background: var(--panel);
+  padding: 6px 10px;
+  background: rgba(34, 29, 24, 0.92);
+  backdrop-filter: blur(4px);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
   font-family: var(--font-mono);
-  width: 240px;
+  width: 220px;
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 #vitals-widget.hidden { display: none; }
@@ -2130,4 +2132,843 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
 .synergy-pill.bad {
   border-color: var(--bad);
   color: var(--bad);
+}
+
+/* =================================================================
+   THE WORKSTATION — single immersive view replacing scene-nav.
+   Layered: room background, desk surface, monitor, handlers.
+   Pressure-driven CSS variables let room.js animate decay subtly.
+   ================================================================= */
+
+:root {
+  /* Decay variables driven by JS; default = "everything is fine" */
+  --decay-saturation: 1;       /* 0..1; multiplied to filter saturate */
+  --decay-flicker: 0;          /* 0..1; controls bulb flicker intensity */
+  --window-cloud: 0;           /* 0..1; window darkens with Control loss */
+  --plant-vitality: 1;         /* 0..1; plant wilt */
+  --phone-urgency: 0;          /* 0..1; phone glow + ring pulse */
+  --steam-rate: 1;             /* 0..1; mug steam rate */
+}
+
+/* Hide legacy scene-nav strip */
+#scene-nav { display: none !important; }
+#app { display: none !important; }
+#workstation.hidden { display: none; }
+
+#workstation {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  min-height: calc(100vh - 40px);   /* below HUD */
+  padding: 0;
+  overflow: hidden;
+}
+
+/* --- Room layer: parallax background + wall objects --- */
+.room-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.room-back {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 60%, var(--panel) 100%);
+  filter: saturate(var(--decay-saturation));
+  transition: filter 1.5s ease;
+}
+.room-back::before {
+  /* Parallax "wall paint" texture */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 4px, transparent 4px 8px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* The window — small viewport into the outside world */
+.room-window {
+  position: absolute;
+  top: 70px; left: 6%;
+  width: 220px;
+  height: 150px;
+  pointer-events: none;
+  filter: saturate(var(--decay-saturation));
+  transition: filter 1.5s ease;
+  display: block;
+}
+.window-glass {
+  position: absolute;
+  inset: 6px;
+  background: linear-gradient(170deg, #2c3848 0%, #1a2330 60%, #0f161e 100%);
+  border-radius: 2px;
+  box-shadow: inset 0 0 32px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.window-glass::before {
+  /* Distant city silhouette, shimmer */
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40%;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(232,165,102,0.10) 70%, rgba(232,165,102,0.18) 100%),
+    repeating-linear-gradient(90deg,
+      rgba(220, 220, 240, 0.04) 0 6px,
+      rgba(220, 220, 240, 0.10) 6px 8px,
+      rgba(220, 220, 240, 0.04) 8px 14px);
+}
+.window-glass::after {
+  /* Cloud overlay — increases with Control loss */
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(20, 20, 24, calc(var(--window-cloud) * 0.7));
+  transition: background 1.8s ease;
+}
+.window-frame {
+  position: absolute; inset: 0;
+  border: 4px solid #221d18;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+
+/* Wall corkboard — model photos pinned to the wall over time */
+.room-corkboard {
+  position: absolute;
+  top: 70px; right: 6%;
+  width: 240px;
+  min-height: 110px;
+  background: #5a3a26;
+  border: 6px solid #3a2a20;
+  border-radius: 3px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5), inset 0 0 12px rgba(0,0,0,0.25);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 8px;
+  gap: 6px;
+  pointer-events: none;
+  filter: saturate(var(--decay-saturation));
+  transition: filter 1.5s ease;
+}
+.corkboard-photo {
+  width: 50px; height: 50px;
+  background: var(--panel-light);
+  border: 2px solid #f0d9b8;
+  border-radius: 2px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(var(--rot, 0deg));
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  position: relative;
+}
+.corkboard-photo::before {
+  /* Pin */
+  content: '';
+  position: absolute;
+  top: -4px; left: 50%;
+  transform: translateX(-50%);
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-warm);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.6);
+}
+.corkboard-photo .photo-label {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* --- Desk layer: foreground band with on-desk objects --- */
+.desk-layer {
+  position: absolute;
+  bottom: 64px;          /* sits on top of the desk surface */
+  left: 0; right: 0;
+  height: 90px;
+  z-index: 2;
+  pointer-events: none;  /* objects opt-in via desk-object */
+  filter: saturate(var(--decay-saturation));
+  transition: filter 1.5s ease;
+}
+.desk-layer::before {
+  /* Desk surface plank */
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 64px;
+  background:
+    linear-gradient(180deg, #4a3326 0%, #3a2a20 50%, #2c1f17 100%);
+  border-top: 2px solid #5a3a26;
+  box-shadow: inset 0 4px 8px rgba(255,200,150,0.05), 0 -8px 16px rgba(0,0,0,0.3);
+}
+.desk-object {
+  position: absolute;
+  bottom: 14px;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  user-select: none;
+  text-align: center;
+}
+.desk-object:hover { transform: translateY(-2px); }
+.desk-object .phone-glyph,
+.desk-object .book-glyph,
+.desk-object .mug-glyph,
+.desk-object .plant-glyph {
+  font-size: 32px;
+  display: block;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+}
+
+/* Phone — placement and ring indicator */
+#desk-phone { left: 6%; }
+#desk-phone .phone-ring-ind {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 calc(var(--phone-urgency) * 16px) var(--bad);
+  opacity: var(--phone-urgency);
+  transition: opacity 0.3s ease;
+}
+#desk-phone.ringing .phone-glyph {
+  animation: phone-ring 0.4s steps(2) infinite;
+}
+@keyframes phone-ring {
+  0% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+
+/* Handbook — the Lab Director's Handbook (stub for now) */
+#desk-handbook { left: 16%; }
+#desk-handbook .book-glyph {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7)) sepia(0.4);
+}
+
+/* Mug + steam */
+#desk-mug { left: 26%; }
+#desk-mug .mug-steam {
+  position: absolute;
+  top: -10px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: rgba(220,220,220,0.6);
+  opacity: var(--steam-rate);
+  animation: steam-rise 2.4s ease-in-out infinite;
+}
+@keyframes steam-rise {
+  0%   { opacity: 0; transform: translate(-50%, 0); }
+  50%  { opacity: var(--steam-rate, 0.8); transform: translate(-50%, -8px); }
+  100% { opacity: 0; transform: translate(-50%, -16px); }
+}
+
+/* Plant */
+#desk-plant { right: 6%; }
+#desk-plant .plant-glyph {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) brightness(calc(0.6 + var(--plant-vitality) * 0.5));
+  transform-origin: center bottom;
+  transform: scale(calc(0.8 + var(--plant-vitality) * 0.3));
+  transition: filter 1.5s ease, transform 1.5s ease;
+}
+
+/* --- The monitor: main interactive surface --- */
+.monitor {
+  position: relative;
+  z-index: 5;
+  margin: 60px auto 180px auto;
+  width: min(1100px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.monitor-bezel {
+  height: 24px;
+  background: linear-gradient(180deg, #1a1a1c 0%, #0c0c0e 100%);
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  border: 1px solid #2a2a2c;
+  border-bottom: none;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.4);
+}
+.monitor-led {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 6px var(--good);
+  animation: led-pulse 3s ease-in-out infinite;
+}
+@keyframes led-pulse { 50% { opacity: 0.6; } }
+.monitor-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 2px;
+  margin-left: auto;
+}
+.monitor-screen {
+  background: var(--bg-deep);
+  border: 14px solid #0a0a0c;
+  border-top-width: 0;
+  border-radius: 0 0 12px 12px;
+  box-shadow:
+    inset 0 0 60px rgba(232,165,102, calc(var(--decay-flicker) * 0.05)),
+    inset 0 0 120px rgba(0,0,0,0.6),
+    0 8px 28px rgba(0,0,0,0.6);
+  position: relative;
+  overflow: hidden;
+}
+.monitor-screen::before {
+  /* Scanline overlay — terminal vibe */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    rgba(0,0,0,0.06) 2px 3px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+.monitor-screen::after {
+  /* Vignette + flicker overlay tied to control */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.25) 100%);
+  opacity: calc(0.8 + var(--decay-flicker) * 0.2);
+  pointer-events: none;
+  z-index: 11;
+}
+.monitor-base {
+  width: 200px;
+  height: 24px;
+  background: linear-gradient(180deg, #1a1a1c 0%, #0c0c0e 100%);
+  margin: 0 auto;
+  border-radius: 0 0 16px 16px;
+  position: relative;
+  z-index: 4;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+}
+
+/* Terminal — the OS-on-monitor */
+.terminal {
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+  font-family: var(--font-mono);
+  position: relative;
+  z-index: 5;
+}
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--accent-warm);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.5px;
+}
+.term-prompt::after {
+  content: '_';
+  margin-left: 4px;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.term-status {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.app-window {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+.app-scene { display: block; }
+.app-scene.hidden { display: none; }
+
+/* App dock — replaces scene-nav */
+.app-dock {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-deep) 0%, #050608 100%);
+  padding: 4px;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.dock-btn {
+  flex: 1 1 0;
+  min-width: 64px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.dock-btn .dock-icon { font-size: 18px; line-height: 1; }
+.dock-btn .dock-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+}
+.dock-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--accent);
+  background: var(--panel);
+}
+.dock-btn.active {
+  border-color: var(--archetype);
+  background: var(--panel);
+  color: var(--accent);
+}
+.dock-btn.active .dock-label { color: var(--archetype); }
+.dock-btn.dock-locked {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.dock-btn.dock-just-unlocked {
+  animation: dock-unlock 1.6s ease-out;
+}
+@keyframes dock-unlock {
+  0%   { box-shadow: 0 0 0 var(--archetype); transform: scale(1); }
+  20%  { box-shadow: 0 0 28px var(--archetype); transform: scale(1.08); }
+  100% { box-shadow: 0 0 0 transparent; transform: scale(1); }
+}
+
+/* --- Handlers: video-call window --- */
+.handler-frame {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 950;
+  width: min(640px, 92vw);
+  pointer-events: auto;
+}
+.handler-frame.hidden { display: none; }
+.handler-call {
+  background: #0a0a0c;
+  border: 2px solid var(--archetype);
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+  animation: handler-static-in 0.6s ease-out;
+}
+@keyframes handler-static-in {
+  0%   { opacity: 0; filter: contrast(2) blur(4px); }
+  100% { opacity: 1; filter: none; }
+}
+.handler-feed {
+  position: relative;
+  background: #1a1416;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 12px;
+  min-height: 180px;
+  overflow: hidden;
+  border-right: 1px solid var(--archetype);
+}
+.handler-portrait {
+  font-size: 56px;
+  line-height: 1;
+  filter: contrast(1.2) saturate(0.7);
+}
+.handler-name {
+  margin-top: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--archetype);
+}
+.handler-static {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+  animation: static-flicker 0.4s steps(4) infinite;
+  opacity: 0.5;
+}
+@keyframes static-flicker { 50% { opacity: 0.3; } }
+.handler-dialogue {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.handler-line {
+  font-family: Georgia, serif;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  min-height: 80px;
+}
+.handler-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.handler-options .action-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+/* Per-stage workstation tweaks */
+html[data-stage="1"] .room-back {
+  background: linear-gradient(180deg, #1a1410 0%, #2a1f17 60%, #382a20 100%);
+}
+html[data-stage="2"] .room-back {
+  background: linear-gradient(180deg, #131820 0%, #1c2530 60%, #232c38 100%);
+}
+html[data-stage="3"] .room-back {
+  background: linear-gradient(180deg, #08090c 0%, #0c0e12 60%, #14171c 100%);
+}
+html[data-stage="3"] .room-corkboard,
+html[data-stage="3"] .room-window {
+  filter: saturate(0.5) brightness(0.85);
+}
+
+/* Mobile / small viewport — hide off-screen wall objects, keep monitor focal */
+@media (max-width: 720px) {
+  .room-window, .room-corkboard, #desk-plant { display: none; }
+  .desk-layer { height: 70px; }
+  .monitor { margin: 30px 8px 100px; }
+  .desk-object .phone-glyph, .desk-object .book-glyph, .desk-object .mug-glyph { font-size: 24px; }
+}
+
+/* When pendingDecision (modal) is open, mute room ambient motion to reduce distraction */
+body.has-modal #desk-mug .mug-steam,
+body.has-modal #monitor-led { animation-play-state: paused; }
+
+/* =================================================================
+   Workstation migration: gentle layout softeners for scenes that now
+   live inside the narrower .app-window (max-height: 60vh, ~1100px).
+   These are scoped under .app-window so legacy callers (if any) still
+   render at their original sizes elsewhere.
+   ================================================================= */
+
+/* The whole scene shouldn't fight the parent's scroll — let app-window do it. */
+.app-window .scene { animation: none; }
+
+/* Operations: the 50/50 split is too wide once we squeeze inside the
+   monitor frame on common laptop widths. Fall back to a single column
+   under ~860px of *app-window* width (i.e. most workstation widths). */
+@media (max-width: 1180px) {
+  .app-window .scene-grid.split-50-50 { grid-template-columns: 1fr; }
+  .app-window .scene-grid.split-60-40 { grid-template-columns: 1fr; }
+}
+
+/* Office: GPU fleet may be wide. Scroll horizontally inside the panel
+   instead of forcing the monitor to stretch. */
+.app-window .gpu-row,
+.app-window .personnel-row,
+.app-window .models-row {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.app-window .office-scene { min-height: 0; }
+.app-window .gpu-spec-grid {
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+}
+
+/* World: SVG map and the right-side panels need to share a tighter row. */
+.app-window .world-map-panel { padding: 8px 10px 10px 10px; }
+.app-window #world-svg { width: 100%; height: auto; max-height: 360px; }
+
+/* Desk: tap target is core gameplay — keep it visually prominent inside
+   the smaller window without dominating the height. */
+.app-window .tap-target { min-height: 110px; padding: 28px 16px; }
+
+/* Logs: the run-timeline list shouldn't try to grow past the scrollable
+   region — keep it scrollable inside the panel for long runs. */
+.app-window .log-list { max-height: 32vh; overflow-y: auto; }
+
+/* =================================================================
+   App-dock polish: subtle padlock for locked apps + boot-up animation
+   when an app installs.
+   ================================================================= */
+.dock-btn.dock-locked {
+  /* Override pointer-events: none so the cursor still shows not-allowed. */
+  pointer-events: auto;
+  position: relative;
+}
+.dock-btn.dock-locked::after {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 8px;
+  opacity: 0.55;
+  filter: grayscale(0.6);
+  pointer-events: none;
+  letter-spacing: 0;
+}
+.dock-btn.dock-locked .dock-icon,
+.dock-btn.dock-locked .dock-label {
+  filter: grayscale(0.7);
+}
+
+/* Boot-up animation: a soft scanline sweep over the icon, plus a tiny
+   pop. Runs once when .dock-just-unlocked is added (existing class). */
+.dock-btn.dock-just-unlocked .dock-icon {
+  display: inline-block;
+  animation: dock-icon-bootup 1.4s ease-out;
+}
+.dock-btn.dock-just-unlocked .dock-label {
+  animation: dock-label-bootup 1.4s ease-out;
+}
+@keyframes dock-icon-bootup {
+  0%   { opacity: 0.2; transform: scale(0.7); filter: blur(2px); }
+  35%  { opacity: 1;   transform: scale(1.18); filter: blur(0); }
+  60%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+@keyframes dock-label-bootup {
+  0%   { opacity: 0; letter-spacing: 6px; }
+  60%  { opacity: 1; letter-spacing: 1.5px; }
+  100% { opacity: 1; letter-spacing: 1.5px; }
+}
+
+/* Subtle desk-handbook cursor + hover lift (already a desk-object, but
+   make it feel more like an inviting book and less like decoration). */
+#desk-handbook { cursor: pointer; }
+#desk-handbook:hover .book-glyph {
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.7)) sepia(0.5) brightness(1.1);
+}
+
+/* =================================================================
+   Lab Director's Handbook — physical book overlay
+   Sepia/cream pages, serif handwriting font, two facing pages, a
+   center-fold seam, hand-numbered corners, marginal doodles.
+   ================================================================= */
+.handbook-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 4, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 24px;
+  animation: fadeIn 0.35s ease forwards;
+}
+.handbook-overlay.hidden { display: none; }
+
+.handbook-book {
+  position: relative;
+  width: min(820px, 96vw);
+  max-height: min(86vh, 720px);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(60, 30, 10, 0.18), transparent 70%),
+    linear-gradient(180deg, #f3e6c8 0%, #ecdcb6 60%, #d8c290 100%);
+  border-radius: 8px;
+  box-shadow:
+    0 10px 36px rgba(0,0,0,0.6),
+    inset 0 0 80px rgba(120, 70, 30, 0.22),
+    inset 0 0 8px rgba(80, 40, 10, 0.35);
+  border: 2px solid #8b6a3e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  color: #3a2814;
+}
+
+.handbook-bookmark {
+  position: absolute;
+  top: -6px;
+  right: 22px;
+  width: 28px;
+  height: 44px;
+  background: linear-gradient(180deg, #a52d2d 0%, #6e1c1c 100%);
+  color: #f3e6c8;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 5;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  transition: transform 0.15s ease;
+}
+.handbook-bookmark:hover { transform: translateY(-2px); }
+
+.handbook-spread {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 14px 1fr;
+  min-height: 0;
+  position: relative;
+}
+.handbook-spread.is-turning .handbook-page {
+  animation: page-turn 0.42s ease;
+}
+@keyframes page-turn {
+  0%   { opacity: 0.3; transform: rotateY(-6deg); transform-origin: center; }
+  100% { opacity: 1;   transform: rotateY(0deg); }
+}
+
+.handbook-page {
+  position: relative;
+  padding: 28px 32px 36px 32px;
+  overflow-y: auto;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 27px, rgba(110, 70, 30, 0.05) 27px 28px),
+    radial-gradient(circle at 80% 20%, rgba(140, 90, 40, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 20% 85%, rgba(140, 90, 40, 0.10) 0%, transparent 38%);
+}
+.handbook-page-left  { box-shadow: inset -8px 0 16px -10px rgba(60, 30, 10, 0.45); }
+.handbook-page-right { box-shadow: inset  8px 0 16px -10px rgba(60, 30, 10, 0.45); }
+
+.handbook-seam {
+  background: linear-gradient(90deg,
+    rgba(60, 30, 10, 0.05) 0%,
+    rgba(60, 30, 10, 0.55) 35%,
+    rgba(40, 20, 5, 0.75) 50%,
+    rgba(60, 30, 10, 0.55) 65%,
+    rgba(60, 30, 10, 0.05) 100%);
+}
+
+.handbook-page .hb-pagenum {
+  position: absolute;
+  top: 14px;
+  font-family: Georgia, serif;
+  font-style: italic;
+  color: #6b4a22;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.handbook-page-left  .hb-pagenum { left: 22px; }
+.handbook-page-right .hb-pagenum { right: 22px; }
+
+.handbook-page .hb-title {
+  font-family: "Brush Script MT", "Lucida Handwriting", Georgia, cursive;
+  font-size: 22px;
+  color: #4a2a10;
+  margin: 8px 0 14px 0;
+  letter-spacing: 0.5px;
+  border-bottom: 1px dashed rgba(110, 70, 30, 0.4);
+  padding-bottom: 6px;
+}
+.handbook-page .hb-body p {
+  font-size: 13.5px;
+  line-height: 1.7;
+  margin: 0 0 10px 0;
+  color: #3a2814;
+}
+.handbook-page .hb-body p em { color: #6b3a14; font-style: italic; }
+.handbook-page .hb-doodle {
+  position: absolute;
+  bottom: 18px;
+  font-size: 26px;
+  opacity: 0.55;
+  filter: sepia(0.3);
+  user-select: none;
+}
+.handbook-page-left  .hb-doodle { right: 22px; transform: rotate(-8deg); }
+.handbook-page-right .hb-doodle { left: 22px;  transform: rotate(7deg); }
+
+.handbook-page .hb-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #8b6a3e;
+  text-align: center;
+  font-style: italic;
+}
+.handbook-page .hb-locked-glyph {
+  font-size: 36px;
+  letter-spacing: 6px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+.handbook-page .hb-locked-text {
+  font-size: 13px;
+  font-family: Georgia, serif;
+}
+
+.handbook-page .hb-blank { height: 100%; }
+
+.handbook-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  background: linear-gradient(180deg, rgba(150, 100, 50, 0.12), rgba(80, 40, 10, 0.18));
+  border-top: 1px solid rgba(80, 40, 10, 0.45);
+  font-family: Georgia, serif;
+  font-size: 12px;
+  color: #4a2a10;
+}
+.handbook-nav {
+  background: transparent;
+  border: 1px solid rgba(80, 40, 10, 0.6);
+  color: #4a2a10;
+  font-size: 18px;
+  width: 32px;
+  height: 28px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  transition: background 0.15s ease;
+}
+.handbook-nav:hover:not(:disabled) { background: rgba(80, 40, 10, 0.12); }
+.handbook-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+.handbook-pageinfo {
+  font-style: italic;
+  color: #6b4a22;
+  letter-spacing: 0.5px;
+}
+
+/* Single-column handbook on narrow screens — show one page at a time. */
+@media (max-width: 700px) {
+  .handbook-spread { grid-template-columns: 1fr; }
+  .handbook-seam { display: none; }
+  .handbook-page-left  { display: none; }
+  .handbook-page-left.solo,
+  .handbook-page-right { display: block; box-shadow: none; }
 }

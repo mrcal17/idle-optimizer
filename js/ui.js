@@ -13,8 +13,17 @@ Game.ui = {
 };
 
 Game.ui.boot = function() {
-  // Wire scene nav
+  // Wire app-dock (the new workstation app launcher) — replaces scene-nav.
+  // Each .dock-btn carries data-scene matching the existing scene module.
   if (!Game.ui._navWired) {
+    document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('dock-locked')) return;
+        Game.ui.showScene(btn.dataset.scene);
+      });
+    });
+    // Legacy scene-nav (still in DOM, kept hidden) for any code that
+    // queried it directly.
     document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.classList.contains('locked')) return;
@@ -54,10 +63,13 @@ Game.ui.showScene = function(sceneName) {
   document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden'));
   const target = document.getElementById('scene-' + sceneName);
   if (target) target.classList.remove('hidden');
+  // Mirror active state on both the new app-dock and the legacy scene-nav.
+  document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.scene === sceneName);
+  });
   document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.scene === sceneName);
   });
-  // Trigger scene render
   if (Game.scenes && Game.scenes[sceneName] && Game.scenes[sceneName].render) {
     Game.scenes[sceneName].render();
   }
@@ -95,13 +107,30 @@ Game.ui.refresh = function() {
 
   // Founder vitals widget — defensive: render only if module + state present.
   if (Game.founder && Game.founder.renderVitals) Game.founder.renderVitals();
+
+  /* Workstation/Room ambient updates (terminal prompt, app counter,
+     environmental decay tied to pressures). All defensive. */
+  if (Game.workstation && Game.workstation.tick) Game.workstation.tick();
+  if (Game.room && Game.room.tick) Game.room.tick();
 };
 
 Game.ui.refreshNav = function() {
   const s = Game.state;
+  if (!s) return;
+  // Apply unlock state to both the legacy scene-nav and the new app-dock.
   document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
     const unlocked = s.scenesUnlocked[btn.dataset.scene];
     btn.classList.toggle('locked', !unlocked);
+  });
+  document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
+    const wasLocked = btn.classList.contains('dock-locked');
+    const unlocked = s.scenesUnlocked[btn.dataset.scene];
+    btn.classList.toggle('dock-locked', !unlocked);
+    // Animate one-shot when an app freshly unlocks.
+    if (wasLocked && unlocked) {
+      btn.classList.add('dock-just-unlocked');
+      setTimeout(() => btn.classList.remove('dock-just-unlocked'), 1700);
+    }
   });
 };
 

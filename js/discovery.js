@@ -138,6 +138,41 @@ Game.discovery = (function() {
     if (cfg.advisor && Game.events && Game.events.advise) {
       Game.events.advise(cfg.advisor.author, cfg.advisor.msg);
     }
+    // App-install beat — for scene reveals, fire an in-character "boot"
+    // log line tied to the dock app id. One-shot per appId via flag.
+    maybeAppInstalledLog(id);
+  }
+
+  /* When a scene-* is revealed, the corresponding dock app is now
+     "installed." Add a single in-character log line per app, gated by
+     a flag so it only ever fires once per run. */
+  const APP_INSTALL_LOGS = {
+    'scene-operations': {
+      appId: 'train',
+      line: 'TRAIN.app installed. /usr/local/bin/foundry --train is now in your PATH.',
+    },
+    'scene-office': {
+      appId: 'team',
+      line: 'TEAM.app installed. The corkboard is now syncing.',
+    },
+    'scene-world': {
+      appId: 'wire',
+      line: 'WIRE.app installed. Outbound network: enabled. The world can see you now.',
+    },
+    'scene-logs': {
+      appId: 'logs',
+      line: 'LOGS.app installed. The logs were always being written. Now you can read them.',
+    },
+  };
+  function maybeAppInstalledLog(revealId) {
+    const entry = APP_INSTALL_LOGS[revealId];
+    if (!entry) return;
+    const s = Game.state;
+    if (!s) return;
+    const installFlag = 'app-installed-' + entry.appId;
+    if (s.flags[installFlag]) return;
+    s.flags[installFlag] = true;
+    Game.addLog(entry.line, 'discovery');
   }
 
   /* ---------- per-tick check ------------------------------------- */
@@ -146,55 +181,72 @@ Game.discovery = (function() {
     if (!s) return;
     const hints = archetypeHints(s);
 
+    /* Pacing intent: the game starts at *one button* and ladders up.
+       Earlier rules let too much surface immediately; these are slower
+       and tied to in-game effort, not just to the starting kit. The
+       archetype-specific hints can override for narrative reasons. */
+
     // First compute earned (advisor flavor only)
     if (!isRevealed('first-compute') && s.compute >= 1) {
       reveal('first-compute');
     }
 
-    // Capital — reveals when money has changed from its starting value.
-    // Starting money differs per archetype, so we record a baseline.
+    // Capital — reveals only after the player has *earned* meaningful
+    // money (above starting kit), or completed at least one day-cycle.
     if (!isRevealed('hud-money')) {
       if (s.flags['_discovery-money-baseline'] === undefined) {
         s.flags['_discovery-money-baseline'] = s.money;
       }
       const baseline = s.flags['_discovery-money-baseline'];
-      if (s.money !== baseline || (s.stats && s.stats.totalRevenue > 0)) {
+      const earned = (s.stats && s.stats.totalRevenue > 0);
+      const cycled = (s.dayCardsTaken && s.dayCardsTaken.length > 0);
+      if (earned || cycled || (s.money - baseline) >= 25) {
         reveal('hud-money');
       }
     }
 
-    // Capability — reveals on first capability point.
-    if (!isRevealed('hud-capability') && s.capability > 0.5) {
+    // Capability — reveals only after meaningful accumulation, not the
+    // first 0.5 of passive trickle.
+    if (!isRevealed('hud-capability') && s.capability >= 8) {
       reveal('hud-capability');
     }
 
-    // Ticker — reveals at tier 1 (Ember).
+    // Ticker — reveals at tier 1 (Ember). The world hasn't noticed you yet.
     if (!isRevealed('ticker') && s.capabilityTier >= 1) {
       reveal('ticker');
     }
 
-    // Pressures panel — first personnel hire OR tier 1 OR archetype hint
+    // Pressures panel — only at tier 1 OR after a real incident, not just
+    // because the archetype shipped with a hire. (Frontier was instant.)
     if (!isRevealed('desk-pressures')) {
+      const hadIncident = !!(s.stats && s.stats.incidentCount > 0);
+      const hadPivot = !!(s.stats && s.stats.pivotCount > 0);
       if (hints.pressuresFromStart ||
-          (s.personnel && s.personnel.length >= 1) ||
-          s.capabilityTier >= 1) {
+          s.capabilityTier >= 1 ||
+          hadIncident || hadPivot) {
         reveal('desk-pressures');
       }
     }
 
-    // Operations — after ~5 compute (one tap) or first tier-up or archetype hint
+    // Operations / TRAIN.app — earned, not handed.
+    // Requires day >= 3 AND meaningful compute, OR first tier-up, OR archetype hint.
     if (!isRevealed('scene-operations')) {
-      if (hints.operationsFromStart ||
-          s.compute >= 5 ||
-          s.capabilityTier >= 1) {
+      const earnedOps = (s.day >= 3 && s.compute >= 25);
+      if (hints.operationsFromStart || earnedOps || s.capabilityTier >= 1) {
         reveal('scene-operations');
       }
     }
 
-    // Office — mirror the existing rule (more than just you), but route
-    // through reveal() so the advisor / DOM toggle stay consistent.
+    // Office / TEAM.app — only after the player makes a hire (or buys a
+    // GPU) of their own — past the starting roster. Tracks via stats.
     if (!isRevealed('scene-office')) {
-      if (s.scenesUnlocked && s.scenesUnlocked.office) {
+      const startingRoster = s.flags['_discovery-roster-baseline'];
+      if (startingRoster === undefined) {
+        s.flags['_discovery-roster-baseline'] = (s.personnel || []).length;
+      }
+      const grewRoster = (s.personnel || []).length > (s.flags['_discovery-roster-baseline'] || 0);
+      const tieredUp = s.capabilityTier >= 1;
+      if (grewRoster || tieredUp || (s.scenesUnlocked && s.scenesUnlocked.office === 'manual')) {
         reveal('scene-office');
       }
     }

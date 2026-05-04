@@ -173,6 +173,9 @@ Game.sim.tick = function() {
   /* === Pivot availability check === */
   if (Game.pivots && Game.pivots.checkAvailability) Game.pivots.checkAvailability();
 
+  /* === Handler / NPC video-call check === */
+  if (Game.handlers && Game.handlers.tick) Game.handlers.tick();
+
   /* === Pressure decision-required gates === */
   if (s.trust < c.redZone && !s.flags['decision-trust-red']) {
     s.flags['decision-trust-red'] = true;

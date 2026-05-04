@@ -19,8 +19,12 @@
       // Hide game UI
       document.getElementById('hud').classList.add('hidden');
       document.getElementById('ticker').classList.add('hidden');
-      document.getElementById('app').classList.add('hidden');
-      document.getElementById('scene-nav').classList.add('hidden');
+      const legacyApp = document.getElementById('app');
+      if (legacyApp) legacyApp.classList.add('hidden');
+      const legacyNav = document.getElementById('scene-nav');
+      if (legacyNav) legacyNav.classList.add('hidden');
+      const ws = document.getElementById('workstation');
+      if (ws) ws.classList.add('hidden');
       // Vitals widget belongs to a run — hide it on the archetype-select screen.
       if (Game.founder && Game.founder.hideVitals) Game.founder.hideVitals();
       // Show archetype select
@@ -71,11 +75,23 @@
     document.getElementById('archetype-select').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
     document.getElementById('ticker').classList.remove('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('scene-nav').classList.remove('hidden');
+    // The new workstation replaces the old #app + #scene-nav surface;
+    // the legacy nodes still exist (hidden) for back-compat.
+    const ws = document.getElementById('workstation');
+    if (ws) ws.classList.remove('hidden');
+    const legacyApp = document.getElementById('app');
+    if (legacyApp) legacyApp.classList.remove('hidden');
+    const legacyNav = document.getElementById('scene-nav');
+    if (legacyNav) legacyNav.classList.remove('hidden');
+    // Boot the room (decay layer) + workstation router if loaded.
+    if (Game.room && Game.room.init) Game.room.init();
+    if (Game.workstation && Game.workstation.init) Game.workstation.init();
 
     // Boot UI subsystems
     Game.ui.boot();
+
+    // Handlers (video-call NPCs) — wire option buttons + clear stale frame.
+    if (Game.handlers && Game.handlers.init) Game.handlers.init();
 
     // Reset progressive-disclosure state (clears any stale hidden classes
     // from a previous run and re-hides the elements this run has yet to

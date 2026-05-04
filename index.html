@@ -55,23 +55,128 @@
   <div id="ticker-track"></div>
 </div>
 
-<!-- Main scene container -->
-<main id="app" class="hidden">
-  <section id="scene-desk" class="scene"></section>
-  <section id="scene-office" class="scene hidden"></section>
-  <section id="scene-operations" class="scene hidden"></section>
-  <section id="scene-world" class="scene hidden"></section>
-  <section id="scene-logs" class="scene hidden"></section>
+<!-- =================================================================
+     The Workstation — single immersive view replacing the 5-tab nav.
+     Layers: room background → desk objects → monitor (terminal) → modals.
+     Existing scenes (desk/office/operations/world/logs) become "apps"
+     that mount inside the terminal screen.
+     ================================================================= -->
+<main id="workstation" class="hidden">
+
+  <!-- Room layer: parallax background, window, wall objects (filled by js/room.js) -->
+  <div id="room-layer" class="room-layer">
+    <div class="room-back" id="room-back"></div>
+    <div class="room-window" id="room-window">
+      <div class="window-glass" id="window-glass"></div>
+      <div class="window-frame"></div>
+    </div>
+    <div class="room-corkboard" id="room-corkboard"></div>
+  </div>
+
+  <!-- Desk surface — foreground band with on-desk objects -->
+  <div id="desk-layer" class="desk-layer">
+    <div class="desk-object phone" id="desk-phone" title="Phone (only rings when it must)">
+      <span class="phone-glyph">☎</span>
+      <span class="phone-ring-ind" id="phone-ring-ind"></span>
+    </div>
+    <div class="desk-object handbook" id="desk-handbook" title="Lab Director's Handbook">
+      <span class="book-glyph">📕</span>
+    </div>
+    <div class="desk-object mug" id="desk-mug" title="Coffee">
+      <span class="mug-glyph">☕</span>
+      <span class="mug-steam" id="mug-steam">·</span>
+    </div>
+    <div class="desk-object plant" id="desk-plant" title="Plant">
+      <span class="plant-glyph" id="plant-glyph">🌿</span>
+    </div>
+  </div>
+
+  <!-- The monitor — main interactive surface. Apps mount inside its screen. -->
+  <div id="monitor" class="monitor">
+    <div class="monitor-bezel">
+      <div class="monitor-led" id="monitor-led"></div>
+      <span class="monitor-label">FOUNDRY-OS v0.1</span>
+    </div>
+    <div class="monitor-screen" id="monitor-screen">
+      <!-- Terminal: app launcher (icons grid) + active app window -->
+      <div id="terminal" class="terminal">
+        <div id="terminal-header" class="terminal-header">
+          <span class="term-prompt" id="term-prompt">foundry@lab:~$</span>
+          <span class="term-status" id="term-status"></span>
+        </div>
+        <!-- Active app window (replaces the old 5-scene divs) -->
+        <div id="app-window" class="app-window">
+          <section id="scene-desk" class="scene app-scene"></section>
+          <section id="scene-office" class="scene app-scene hidden"></section>
+          <section id="scene-operations" class="scene app-scene hidden"></section>
+          <section id="scene-world" class="scene app-scene hidden"></section>
+          <section id="scene-logs" class="scene app-scene hidden"></section>
+        </div>
+        <!-- App launcher dock at the bottom of the terminal screen -->
+        <nav id="app-dock" class="app-dock">
+          <button data-scene="desk" class="dock-btn active" data-app-id="tap">
+            <span class="dock-icon">⚡</span><span class="dock-label">TAP</span>
+          </button>
+          <button data-scene="operations" class="dock-btn dock-locked" data-app-id="train">
+            <span class="dock-icon">⚙</span><span class="dock-label">TRAIN</span>
+          </button>
+          <button data-scene="office" class="dock-btn dock-locked" data-app-id="team">
+            <span class="dock-icon">🪪</span><span class="dock-label">TEAM</span>
+          </button>
+          <button data-scene="world" class="dock-btn dock-locked" data-app-id="wire">
+            <span class="dock-icon">🌐</span><span class="dock-label">WIRE</span>
+          </button>
+          <button data-scene="logs" class="dock-btn dock-locked" data-app-id="logs">
+            <span class="dock-icon">📜</span><span class="dock-label">LOGS</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+    <div class="monitor-base"></div>
+  </div>
+
+  <!-- Handlers' video-call surface: pops over the terminal when one calls -->
+  <div id="handler-frame" class="handler-frame hidden">
+    <div class="handler-call" id="handler-call">
+      <div class="handler-feed" id="handler-feed">
+        <div class="handler-portrait" id="handler-portrait">📺</div>
+        <div class="handler-name" id="handler-name">G-MAN</div>
+        <div class="handler-static"></div>
+      </div>
+      <div class="handler-dialogue">
+        <div class="handler-line" id="handler-line"></div>
+        <div class="handler-options" id="handler-options"></div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
-<!-- Bottom scene-nav -->
-<nav id="scene-nav" class="hidden">
-  <button data-scene="desk" class="nav-btn active">🖥 Desk</button>
-  <button data-scene="office" class="nav-btn locked nav-hidden">🏢 Office</button>
-  <button data-scene="operations" class="nav-btn locked nav-hidden">⚙ Ops</button>
-  <button data-scene="world" class="nav-btn locked nav-hidden">🌐 World</button>
-  <button data-scene="logs" class="nav-btn locked nav-hidden">📜 Logs</button>
+<!-- LEGACY scene-nav kept hidden for backwards-compat with existing JS that references it. -->
+<nav id="scene-nav" class="hidden" aria-hidden="true">
+  <button data-scene="desk" class="nav-btn"></button>
+  <button data-scene="office" class="nav-btn nav-hidden"></button>
+  <button data-scene="operations" class="nav-btn nav-hidden"></button>
+  <button data-scene="world" class="nav-btn nav-hidden"></button>
+  <button data-scene="logs" class="nav-btn nav-hidden"></button>
 </nav>
+
+<!-- Lab Director's Handbook — physical-book overlay opened from the desk -->
+<div id="handbook-overlay" class="handbook-overlay hidden">
+  <div class="handbook-book" role="dialog" aria-label="Lab Director's Handbook">
+    <div class="handbook-bookmark" id="handbook-bookmark" title="Close">✕</div>
+    <div class="handbook-spread">
+      <div class="handbook-page handbook-page-left" id="handbook-page-left"></div>
+      <div class="handbook-seam"></div>
+      <div class="handbook-page handbook-page-right" id="handbook-page-right"></div>
+    </div>
+    <div class="handbook-controls">
+      <button class="handbook-nav handbook-prev" id="handbook-prev" aria-label="Previous page">‹</button>
+      <span class="handbook-pageinfo" id="handbook-pageinfo"></span>
+      <button class="handbook-nav handbook-next" id="handbook-next" aria-label="Next page">›</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal overlays (filled by JS) -->
 <div id="pivot-overlay" class="overlay hidden">
@@ -224,6 +329,11 @@
 <script src="js/synergies.js"></script>
 <script src="js/stages.js"></script>
 <script src="js/dayLoop.js"></script>
+<script src="js/data/handler-data.js"></script>
+<script src="js/handlers.js"></script>
+<script src="js/room.js"></script>
+<script src="js/workstation.js"></script>
+<script src="js/handbook.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/discovery.js"></script>
 <script src="js/scenes/desk.js"></script>

@@ -279,6 +279,55 @@ The user feedback was that the early game ramped too fast. These are the levers 
 
 ---
 
+## 🎮 Minigames as mechanical theme
+
+See `MINIGAMES.md` for the full design doc. The system turns pivots, paradigms, incidents, and tier failure-modes into playable moments that teach AI safety concepts through mechanic, not lecture.
+
+### Phase 1 — shipped this iteration
+- [x] **Minigame framework** (`js/minigames.js`, `#minigame-overlay`, lifecycle, default-outcome fallback, `state.minigameLog`, settings auto-skip flag)
+- [x] **Constitutional Drafting** (drafting type) — pivot: Aligned Mission. Pick 5 of 12 principles; conflicts cost cohesion; outcome maps to choice index.
+- [x] **Red Team / Subtle Output Audit** (pattern recognition) — augments incidents at Beacon+. 8 outputs, 5s each. Score modulates incident severity.
+- [x] **RLHF Preference Sweep** (allocation) — augments preference-tuning paradigm shifts. 12 A/B pairs; consistency + lean modulate capability/trust mult.
+
+### Phase 2 — design ready, ship next
+
+- [ ] **VC negotiation** (negotiation) — Pivot: IPO / Series-B. 4-8 turn dialog with hidden investor minimums; outcome shapes equity vs control.
+- [ ] **Defense negotiation** (negotiation) — Pivot: Defense Contract. Same shape; outcome shapes mission drift vs revenue.
+- [ ] **Acquisition negotiation** (negotiation) — Pivot: Acquisition. Term-sheet review minigame: highlight clauses, each highlighted clause shifts the deal.
+- [ ] **Senate Hearing** (negotiation) — Pivot: Strike Deal w/ Government. Senator questions, 3 reply options each, sympathetic vs hostile interlocutors.
+- [ ] **Jailbreak Defense** (pattern recognition) — Beacon-tier incident augment. Defender side of red-team — incoming user prompts, approve/reject under time pressure.
+- [ ] **Eval Gaming** (pattern recognition) — tier-up moment. Evaluation outputs that look right but are wrong, or look wrong but are right.
+- [ ] **Agent Trace** (tracing) — Lighthouse-tier incident. Multi-step agent action trace; player intervenes when a step looks wrong (instrumental convergence).
+- [ ] **Mech Interp** (tracing) — paradigm: Mechanistic Interpretability. Activation patterns; match a behavior to its likely circuit.
+
+### Phase 3 — ideated, deferred
+
+- [ ] **Open Letter Drafting** (drafting) — Pivot: Open Letter. Compose from text fragments + pick signatories.
+- [ ] **Open-Source Terms** (drafting) — Pivot: Open-Source the Weights. Multi-axis license decision.
+- [ ] **Whistleblower** (negotiation) — late-game flavor event. Talk-down a leaking team member; consequences fork.
+- [ ] **Reward Hacking demo** (tracing) — Ember-tier incident. Watch the model exploit an unintended path; pick a "fix" that often makes it worse.
+- [ ] **Deceptive Eval** (pattern recognition) — Pharos-tier incident. The model behaves differently when it suspects it's being tested.
+- [ ] **Paradigm Discovery** (tracing) — Architecture Experiment. What a paradigm shift "looks like" when it lands.
+- [ ] **Compute Routing** (allocation) — Lab-stage transition. Under-resourced scheduling; pick which jobs starve.
+- [ ] **Pretrain Knob Tuning** (allocation) — Pretraining run kickoff. Hyperparameter intuition.
+- [ ] **Pre-deployment Audit** (tracing) — Before any deployment. Catch issues before launch.
+- [ ] **Constitution Amendment** (drafting) — late-game; only after Constitutional fired. Norms erode; you can rewrite them.
+
+### Phase 4 — big swings (need design work)
+
+- [ ] **Mesa-optimizer Hunt** — Pharos. Cellular-automaton grid where the player tries to find an inner optimizer in their model's policy.
+- [ ] **Distributional Shift** — Lighthouse. Graph-of-environments where the player picks distribution slices for eval; some slices hide failure modes.
+- [ ] **Recursive Self-Improvement** — Pharos. Meta-minigame: the player's *previous* minigame outcomes become the substrate the model is improving against.
+- [ ] **Apex Resolution** — final tier. The Apex resolution becomes its own minigame whose outcome literally chooses the ending cinematic.
+
+### Framework backlog
+
+- [ ] **Auto-skip Minigames** Settings toggle (referenced by framework already; add UI in Options panel)
+- [ ] **Minigame achievements** — perfect Constitutional cohesion run, perfect Red Team round, etc.
+- [ ] **Difficulty modulation** — late-game minigames get harder (faster timers, more subtle items)
+- [ ] **Run-end recap** — end-of-run summary lists key minigame moments ("You aced the Senate Hearing on Day 86. You missed two Red Team flags before the Pharos jailbreak.")
+- [ ] **Replay** — view past minigame outcomes from the Logs scene
+
 ## 🎨 Style discipline (ongoing)
 
 The STYLE_GUIDE.md is the binding spec. Everything new must conform.

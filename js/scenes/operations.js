@@ -5,7 +5,13 @@ Game.scenes = Game.scenes || {};
 
 Game.scenes.operations = {
 
-  _gpuSpecCycle: ['general', 'training', 'research', 'inference'],
+  /* Drop zones, in display order. Each zone maps to a gpu.spec value. */
+  _gpuZones: [
+    { spec: 'general',   label: 'IDLE POOL',            note: 'general-purpose; available for any role' },
+    { spec: 'training',  label: 'TRAINING',             note: 'training-spec; +1.7x training throughput' },
+    { spec: 'research',  label: 'RESEARCH',             note: 'research-spec; +2.0x capability gain' },
+    { spec: 'inference', label: 'INFERENCE / DEPLOYED', note: 'inference-spec; deployment revenue' },
+  ],
 
   init(container) {
     container.innerHTML = `
@@ -24,10 +30,10 @@ Game.scenes.operations = {
           </div>
 
           <div class="panel">
-            <h2>GPU Specialization</h2>
-            <div id="ops-gpu-spec" class="gpu-spec-grid"></div>
+            <h2>GPU Allocation</h2>
+            <div id="ops-gpu-spec" class="gpu-alloc"></div>
             <div id="ops-gpu-spec-banner"></div>
-            <div style="margin-top: 8px; font-size: 11px; color: var(--text-faint);">Click an idle GPU to cycle: general → training → research → inference.</div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--text-faint);">Drag a GPU into a zone to allocate it. Busy GPUs cannot move.</div>
           </div>
 
           <div class="panel">
@@ -50,10 +56,10 @@ Game.scenes.operations = {
   },
 
   _specMeta: {
-    general:   { icon: '⚙',  label: 'GEN',  full: 'General' },
-    training:  { icon: '🏋',  label: 'TRAIN', full: 'Training' },
-    research:  { icon: '🔬', label: 'RSCH', full: 'Research' },
-    inference: { icon: '📡', label: 'INFER', full: 'Inference' },
+    general:   { label: 'GEN',   full: 'General' },
+    training:  { label: 'TRAIN', full: 'Training' },
+    research:  { label: 'RSCH',  full: 'Research' },
+    inference: { label: 'INFER', full: 'Inference' },
   },
 
   _showGpuBanner(msg) {
@@ -295,6 +301,52 @@ Game.scenes.operations = {
     }
   },
 
+  /* Show a per-zone rejection banner that fades after 1.5s. Used when the
+     player tries to drop a busy GPU into a zone. The zone itself shakes
+     via the .drop-rejected class. */
+  _showZoneReject(zoneEl, msg) {
+    if (!zoneEl) return;
+    let banner = zoneEl.querySelector('.zone-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'zone-banner';
+      zoneEl.appendChild(banner);
+    }
+    banner.textContent = msg;
+    banner.classList.remove('hide');
+    zoneEl.classList.remove('drop-rejected');
+    // Force reflow so the shake replays on rapid retries.
+    void zoneEl.offsetWidth;
+    zoneEl.classList.add('drop-rejected');
+    if (this._zoneBannerTimer) clearTimeout(this._zoneBannerTimer);
+    this._zoneBannerTimer = setTimeout(() => {
+      banner.classList.add('hide');
+      zoneEl.classList.remove('drop-rejected');
+    }, 1500);
+  },
+
+  /* Move a GPU to a new spec. Validates that it isn't busy or deployed.
+     Returns true on success, false on rejection. */
+  _moveGpu(gpuId, targetSpec, zoneEl) {
+    const s = Game.state;
+    const gpu = s.gpus.find(g => g.id === gpuId);
+    if (!gpu) return false;
+    const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+      ? Game.deployments.allocatedGpuIds()
+      : new Set();
+    if (gpu.busyJobId || deployed.has(gpu.id)) {
+      Game.scenes.operations._showZoneReject(zoneEl, `GPU #${gpu.id} is busy`);
+      return false;
+    }
+    if (gpu.spec === targetSpec) {
+      // No-op — re-flow into same zone, no log entry.
+      return true;
+    }
+    gpu.spec = targetSpec;
+    Game.addLog(`GPU #${gpu.id} reconfigured to ${targetSpec}.`, '');
+    return true;
+  },
+
   _renderGpuSpec() {
     const s = Game.state;
     const box = document.getElementById('ops-gpu-spec');
@@ -302,8 +354,7 @@ Game.scenes.operations = {
 
     const gpus = s.gpus || [];
     if (!gpus.length) {
-      // Graceful degrade — small empty hint, but keep grid container styling.
-      box.innerHTML = '<div style="grid-column: 1 / -1; color: var(--text-faint); font-size: 12px;">No GPUs to configure.</div>';
+      box.innerHTML = '<div class="gpu-alloc-empty">No GPUs yet. Buy your first one.</div>';
       return;
     }
 
@@ -311,48 +362,162 @@ Game.scenes.operations = {
     const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
       ? Game.deployments.allocatedGpuIds()
       : new Set();
-    box.innerHTML = gpus.map(g => {
+    const zones = this._gpuZones;
+
+    // Bucket GPUs by spec.
+    const buckets = { general: [], training: [], research: [], inference: [] };
+    gpus.forEach(g => {
+      const spec = buckets[g.spec] ? g.spec : 'general';
+      buckets[spec].push(g);
+    });
+
+    const cardHtml = (g) => {
       const spec = g.spec || 'general';
       const m = meta[spec] || meta.general;
-      const locked = !!g.busyJobId || deployed.has(g.id);
-      const classes = ['gpu-spec-cell', `spec-${spec}`];
-      if (locked) classes.push('locked');
-      const title = locked
-        ? `GPU #${g.id} — ${m.full} · ${g.busyJobId ? 'busy on training run' : 'allocated to deployment'}`
-        : `GPU #${g.id} — ${m.full} · click to cycle`;
-      return `<div class="${classes.join(' ')}" data-gpu-id="${g.id}" data-locked="${locked ? '1' : '0'}" title="${title}">
-        <span class="gsc-id">#${g.id}</span>
-        ${locked ? '<span class="gsc-lock" aria-label="locked">' + (window.Game && Game.icons ? Game.icons.markup('lock', 'icon-sm') : '') + '</span>' : ''}
-        <span class="gsc-icon">${m.icon}</span>
-        <span class="gsc-badge">${m.label}</span>
+      const busy = !!g.busyJobId || deployed.has(g.id);
+      const cls = ['gpu-card', `spec-${spec}`];
+      if (busy) cls.push('busy');
+      const reason = g.busyJobId ? 'on training run' : (deployed.has(g.id) ? 'on deployment' : '');
+      const title = busy
+        ? `GPU #${g.id} — ${m.full} · busy (${reason})`
+        : `GPU #${g.id} — ${m.full} · drag to a zone to reallocate`;
+      const draggable = busy ? 'false' : 'true';
+      return `<div class="${cls.join(' ')}"
+        data-gpu-id="${g.id}"
+        data-busy="${busy ? '1' : '0'}"
+        draggable="${draggable}"
+        tabindex="0"
+        role="button"
+        aria-label="GPU ${g.id}, ${m.full}${busy ? ', busy' : ''}"
+        title="${title}">
+        <span class="gc-id">#${g.id}</span>
+        ${Game.icons ? Game.icons.markup('cpu', 'icon-sm') : ''}
+        <span class="gc-spec">${m.label}</span>
+      </div>`;
+    };
+
+    box.innerHTML = zones.map(z => {
+      const list = buckets[z.spec] || [];
+      const count = list.length;
+      const cardsHtml = list.map(cardHtml).join('');
+      return `<div class="gpu-zone" data-zone-spec="${z.spec}" aria-label="${z.label}, ${count} GPU${count === 1 ? '' : 's'}">
+        <div class="zone-head">
+          <span class="zone-title">${z.label}</span>
+          <span class="zone-count">${count}</span>
+        </div>
+        <div class="zone-note">${z.note}</div>
+        <div class="zone-cards">${cardsHtml}</div>
+        <div class="zone-banner hide" aria-live="polite"></div>
       </div>`;
     }).join('');
 
-    box.querySelectorAll('.gpu-spec-cell').forEach(cell => {
-      cell.addEventListener('click', () => {
-        const id = parseInt(cell.dataset.gpuId, 10);
-        const gpu = s.gpus.find(g => g.id === id);
-        if (!gpu) return;
-        if (gpu.busyJobId || deployed.has(gpu.id)) {
-          // Show transient banner + diegetic advisor toast.
-          const reason = gpu.busyJobId ? 'currently on a training run' : 'currently allocated to a deployment';
-          Game.scenes.operations._showGpuBanner(`GPU #${gpu.id} is locked — ${reason}.`);
-          if (Game.events && Game.events.advise) {
-            Game.events.advise('Ops Lead', `GPU #${gpu.id} is ${reason} — free it before re-speccing.`);
-          }
+    // Hydrate icons inside the freshly-rendered cards.
+    if (Game.icons && Game.icons.hydrate) Game.icons.hydrate(box);
+
+    // Wire drag-and-drop.
+    this._wireGpuDnD(box);
+  },
+
+  /* HTML5 drag-and-drop wiring + keyboard fallback. Idempotent: each render
+     replaces the inner DOM, so listeners die with their nodes. */
+  _wireGpuDnD(box) {
+    const self = this;
+
+    // Cards
+    box.querySelectorAll('.gpu-card').forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        if (card.dataset.busy === '1') {
+          e.preventDefault();
           return;
         }
-        // Click flash for tactile feedback.
-        cell.classList.remove('flash');
-        // Force reflow so the animation restarts on rapid re-clicks.
-        // eslint-disable-next-line no-unused-expressions
-        cell.offsetWidth;
-        cell.classList.add('flash');
+        const id = card.dataset.gpuId;
+        try {
+          e.dataTransfer.setData('text/plain', id);
+          e.dataTransfer.effectAllowed = 'move';
+        } catch (_) { /* some browsers throw on unusual MIME */ }
+        card.classList.add('dragging');
+        // Tag the box so zones can know a drag is in flight (for hover styling).
+        box.classList.add('dnd-active');
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        box.classList.remove('dnd-active');
+        box.querySelectorAll('.gpu-zone.drop-target').forEach(z => z.classList.remove('drop-target'));
+      });
 
-        const cycle = Game.scenes.operations._gpuSpecCycle;
-        const idx = cycle.indexOf(gpu.spec || 'general');
-        gpu.spec = cycle[(idx + 1) % cycle.length];
-        Game.addLog(`GPU #${gpu.id} reconfigured to ${gpu.spec}.`, '');
+      // Keyboard accessibility — Space picks up / drops; ArrowLeft/Right/Up/Down
+      // moves between zones while held.
+      card.addEventListener('keydown', (e) => {
+        const id = parseInt(card.dataset.gpuId, 10);
+        if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') {
+          e.preventDefault();
+          if (card.dataset.busy === '1') {
+            const z = card.closest('.gpu-zone');
+            self._showZoneReject(z, `GPU #${id} is busy`);
+            return;
+          }
+          if (self._heldGpuId === id) {
+            // Drop into current zone (no-op) — clear held state.
+            self._heldGpuId = null;
+            card.classList.remove('held');
+          } else {
+            // Pick up.
+            self._heldGpuId = id;
+            box.querySelectorAll('.gpu-card.held').forEach(c => c.classList.remove('held'));
+            card.classList.add('held');
+          }
+        } else if (self._heldGpuId === id && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          e.preventDefault();
+          const order = self._gpuZones.map(z => z.spec);
+          const cur = (Game.state.gpus.find(g => g.id === id) || {}).spec || 'general';
+          let idx = order.indexOf(cur);
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') idx = Math.max(0, idx - 1);
+          else idx = Math.min(order.length - 1, idx + 1);
+          const targetSpec = order[idx];
+          const zoneEl = box.querySelector(`.gpu-zone[data-zone-spec="${targetSpec}"]`);
+          const moved = self._moveGpu(id, targetSpec, zoneEl);
+          if (moved) {
+            // Re-render and refocus the card in its new zone.
+            if (Game.ui && Game.ui.refresh) Game.ui.refresh();
+            const newCard = document.querySelector(`.gpu-card[data-gpu-id="${id}"]`);
+            if (newCard) {
+              newCard.classList.add('held');
+              newCard.focus();
+            }
+          }
+        } else if (e.key === 'Escape' && self._heldGpuId === id) {
+          self._heldGpuId = null;
+          card.classList.remove('held');
+        }
+      });
+    });
+
+    // Zones
+    box.querySelectorAll('.gpu-zone').forEach(zone => {
+      zone.addEventListener('dragover', (e) => {
+        // Required to allow drop.
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        zone.classList.add('drop-target');
+      });
+      zone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        zone.classList.add('drop-target');
+      });
+      zone.addEventListener('dragleave', (e) => {
+        // Only clear if we're actually leaving the zone (not entering a child).
+        if (e.relatedTarget && zone.contains(e.relatedTarget)) return;
+        zone.classList.remove('drop-target');
+      });
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drop-target');
+        let id = NaN;
+        try { id = parseInt(e.dataTransfer.getData('text/plain'), 10); } catch (_) {}
+        if (isNaN(id)) return;
+        const targetSpec = zone.dataset.zoneSpec;
+        const moved = self._moveGpu(id, targetSpec, zone);
+        if (moved && Game.ui && Game.ui.refresh) Game.ui.refresh();
       });
     });
   },

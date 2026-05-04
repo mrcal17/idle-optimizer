@@ -2,9 +2,25 @@
 
 (function() {
   function boot() {
-    // Populate archetype select screen
+    // Settings load FIRST so any later subsystem (sim, transitions) reads
+    // correct tickMs / animSpeed / highContrast from the start.
+    if (Game.settings && Game.settings.load) Game.settings.load();
+
+    // Populate archetype select (kept hidden until "New Game") so the
+    // grid/dropdowns are ready when the user lands on it.
     Game.ui.populateArchetypeSelect();
-    document.getElementById('archetype-select').classList.remove('hidden');
+
+    // Wire shell buttons. Options form wires its own listeners.
+    if (Game.options && Game.options.wire) Game.options.wire();
+
+    const newGameBtn = document.getElementById('menu-new-game');
+    if (newGameBtn) newGameBtn.addEventListener('click', () => {
+      if (Game.menu) Game.menu.showArchetype();
+    });
+    const optionsBtn = document.getElementById('menu-options');
+    if (optionsBtn) optionsBtn.addEventListener('click', () => {
+      if (Game.menu) Game.menu.showOptions();
+    });
 
     document.getElementById('start-run-btn').addEventListener('click', () => {
       const archId = document.getElementById('archetype-grid').dataset.selected || 'frontier';
@@ -25,10 +41,11 @@
       if (legacyNav) legacyNav.classList.add('hidden');
       const ws = document.getElementById('workstation');
       if (ws) ws.classList.add('hidden');
-      // Vitals widget belongs to a run — hide it on the archetype-select screen.
+      // Vitals widget belongs to a run — hide it on the menu screen.
       if (Game.founder && Game.founder.hideVitals) Game.founder.hideVitals();
-      // Show archetype select
-      document.getElementById('archetype-select').classList.remove('hidden');
+      // Return to the main menu (preserves the shell metaphor).
+      if (Game.menu) Game.menu.showMain();
+      else document.getElementById('main-menu').classList.remove('hidden');
     });
 
     document.getElementById('ending-download-card').addEventListener('click', () => {
@@ -44,6 +61,25 @@
       eodEndBtn.addEventListener('click', () => {
         if (Game.dayLoop && Game.dayLoop.endDay) Game.dayLoop.endDay();
       });
+    }
+
+    /* === Shell flow ===
+       Boot screen plays once, then the main menu appears. Archetype
+       select is no longer shown on load — it's reached via "New Game".
+       If anything throws inside boot.run, the safety timeout in boot.js
+       falls through to the menu after 5s. */
+    function showMainMenu() {
+      if (Game.menu) Game.menu.showMain();
+      else document.getElementById('main-menu').classList.remove('hidden');
+    }
+    try {
+      if (Game.boot && Game.boot.run) {
+        Game.boot.run(showMainMenu);
+      } else {
+        showMainMenu();
+      }
+    } catch (e) {
+      showMainMenu();
     }
   }
 
@@ -71,8 +107,15 @@
     if (Game.founder && Game.founder.init) Game.founder.init(Game.state);
     if (Game.founder && Game.founder.showVitals) Game.founder.showVitals();
 
-    // Hide select, show game
-    document.getElementById('archetype-select').classList.add('hidden');
+    // Hide all shell screens, show game
+    if (Game.menu) Game.menu.hideAll();
+    else {
+      document.getElementById('archetype-select').classList.add('hidden');
+      const mm = document.getElementById('main-menu');
+      if (mm) mm.classList.add('hidden');
+      const opts = document.getElementById('options-screen');
+      if (opts) opts.classList.add('hidden');
+    }
     document.getElementById('hud').classList.remove('hidden');
     document.getElementById('ticker').classList.remove('hidden');
     // The new workstation replaces the old #app + #scene-nav surface;

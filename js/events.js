@@ -255,13 +255,47 @@ Game.events = (function() {
     fireIncident(incident);
   }
 
-  /* ---------- the actual fire ---------- */
-  function fireIncident(incident) {
+  /* ---------- minigame routing ---------- */
+
+  /* Should this incident be routed through the Red Team minigame instead
+     of firing flat? Conditions per MINIGAMES.md §5:
+       - capabilityTier >= 2 (Beacon+)
+       - 30 in-game-day cooldown since last red-team
+       - 30% random gate
+       - run not ended
+       - no other minigame currently active
+       - Game.minigames module present
+       - Auto-skip Minigames setting NOT on (otherwise no point routing)  */
+  function canRouteToRedTeam(incident) {
+    const s = Game.state;
+    if (!s || s.runEnded) return false;
+    if ((s.capabilityTier || 0) < 2) return false;
+    if (!Game.minigames || typeof Game.minigames.open !== 'function') return false;
+    if (Game.minigames.isActive && Game.minigames.isActive()) return false;
+    // Auto-skip means the minigame would just resolve to default anyway —
+    // skip the indirection and run the incident normally.
+    if (Game.settings && Game.settings.get && Game.settings.get('autoSkipMinigames')) return false;
+
+    // Cooldown — value is the day on which the last one fired.
+    const lastDay = s.flags['minigame-red-team-cooldown'];
+    if (typeof lastDay === 'number' && (s.day - lastDay) < 30) return false;
+
+    // The 30% random gate.
+    if (Math.random() > 0.30) return false;
+    return true;
+  }
+
+  /* Apply an incident's effect with the standard pressure-mitigation
+     pipeline, optionally scaling the pressure deltas by `mult` (the
+     severity multiplier supplied by a minigame). Returns nothing; mutates
+     Game.state. The incident's non-pressure side effects (flags, etc.)
+     remain at full strength — we only modulate the trust/control/
+     dependence deltas, which is what "severity" means here. */
+  function applyIncidentEffect(incident, mult) {
     const s = Game.state;
     if (!s || !incident) return;
+    if (typeof mult !== 'number' || !isFinite(mult) || mult < 0) mult = 1;
 
-    // Apply the immediate effect, then route pressure deltas through
-    // mitigation hooks. Non-pressure side effects from the incident remain.
     const before = {
       trust: s.trust,
       control: s.control,
@@ -275,18 +309,63 @@ Game.events = (function() {
       controlDelta: finiteDelta(s.control, before.control),
       dependenceDelta: finiteDelta(s.dependence, before.dependence),
     };
-    const severityMult = (typeof s.flags['synergy-incident-severity'] === 'number')
+
+    // Existing synergy modifier; minigame mult composes with it.
+    const synergyMult = (typeof s.flags['synergy-incident-severity'] === 'number')
       ? s.flags['synergy-incident-severity']
       : 1;
-    if (ctx.trustDelta < 0) ctx.trustDelta *= severityMult;
-    if (ctx.controlDelta < 0) ctx.controlDelta *= severityMult;
-    if (ctx.dependenceDelta > 0) ctx.dependenceDelta *= severityMult;
+    const totalMult = synergyMult * mult;
+
+    if (ctx.trustDelta < 0)      ctx.trustDelta *= totalMult;
+    if (ctx.controlDelta < 0)    ctx.controlDelta *= totalMult;
+    if (ctx.dependenceDelta > 0) ctx.dependenceDelta *= totalMult;
+
     if (Game.founder && Game.founder.applyTraitEffects) {
       Game.founder.applyTraitEffects('incident', ctx);
     }
-    s.trust = clampPressure(before.trust + ctx.trustDelta);
-    s.control = clampPressure(before.control + ctx.controlDelta);
+    s.trust      = clampPressure(before.trust      + ctx.trustDelta);
+    s.control    = clampPressure(before.control    + ctx.controlDelta);
     s.dependence = clampPressure(before.dependence + ctx.dependenceDelta);
+  }
+
+  /* ---------- the actual fire ---------- */
+  function fireIncident(incident) {
+    const s = Game.state;
+    if (!s || !incident) return;
+
+    // Beacon+ red-team routing: 30% chance to replace the flat incident
+    // with the Subtle Output Audit minigame. Result modulates severity.
+    if (canRouteToRedTeam(incident)) {
+      s.flags['minigame-red-team-cooldown'] = s.day;
+      Game.minigames.open('red-team', {
+        context: { incident },
+        onComplete(result) {
+          const mult = (result && typeof result.severityMult === 'number')
+            ? result.severityMult : 1;
+          applyIncidentTail(incident, mult);
+        },
+      });
+      return;
+    }
+
+    applyIncidentTail(incident, 1);
+  }
+
+  /* The post-effect tail of fireIncident: log entry, scripted beats,
+     per-model event append, and the choice-required gate. Pulled out so
+     both the minigame and non-minigame paths share it. `mult` is the
+     severity multiplier applied to pressure deltas. */
+  function applyIncidentTail(incident, mult) {
+    const s = Game.state;
+    if (!s || !incident) return;
+
+    const before = {
+      trust: s.trust,
+      control: s.control,
+      dependence: s.dependence,
+    };
+
+    applyIncidentEffect(incident, mult);
 
     if ((s.flags['trust-event-shield'] || 0) > 0 && s.trust < before.trust) {
       s.trust = before.trust;

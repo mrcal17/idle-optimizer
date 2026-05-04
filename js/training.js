@@ -57,6 +57,10 @@ Game.training = (function() {
     if (typeof state.flags['synergy-posttrain-trust'] === 'number') {
       m *= state.flags['synergy-posttrain-trust'];
     }
+    /* RLHF Sweep minigame: rater lean shapes how much trust post-train recovers. */
+    if (typeof state.flags['rlhf-sweep-trust-mult'] === 'number') {
+      m *= state.flags['rlhf-sweep-trust-mult'];
+    }
     return m;
   }
 
@@ -78,6 +82,10 @@ Game.training = (function() {
   function pretrainCapabilityGainMult(state) {
     let m = 1;
     if (state.flags['paradigm-chain-of-thought-distillation']) m *= 1.25;
+    /* RLHF Sweep minigame: helpful-leaning, consistent picks compound capability. */
+    if (typeof state.flags['rlhf-sweep-capability-mult'] === 'number') {
+      m *= state.flags['rlhf-sweep-capability-mult'];
+    }
     return m;
   }
 
@@ -490,6 +498,49 @@ Game.training = (function() {
     rollIncident(run);
   }
 
+  /* IDs of paradigms that route through the rlhf-sweep minigame.
+     Read paradigms.js for canonical IDs — only ones present there will fire. */
+  const RLHF_SWEEP_PARADIGM_IDS = [
+    'rlhf-from-preferences',
+    'constitutional-self-critique',
+    'rlhf-stack',                  // forward-compat name from MINIGAMES.md
+    'preference-tuned-refinement', // forward-compat name from MINIGAMES.md
+  ];
+
+  function applyParadigmShift(shift, run, mults) {
+    const s = Game.state;
+    if (!s) return;
+    /* If the minigame produced multipliers, persist them as flags so any
+       sim consumer (post-train trust gain, capability mults) can read them.
+       We keep the original effect() side-effects intact. */
+    if (mults && (mults.capabilityMult || mults.trustMult)) {
+      s.flags['rlhf-sweep-capability-mult'] = mults.capabilityMult || 1;
+      s.flags['rlhf-sweep-trust-mult']      = mults.trustMult      || 1;
+      s.flags['rlhf-sweep-consistency']     = (typeof mults.consistency === 'number') ? mults.consistency : 0.5;
+      s.flags['rlhf-sweep-lean']            = (typeof mults.lean === 'number') ? mults.lean : 0;
+    }
+    if (typeof shift.effect === 'function') {
+      try { shift.effect(s); }
+      catch (e) {
+        console.error('Paradigm effect failed:', shift.id, e);
+        if (shift.id) s.flags['paradigm-' + shift.id] = true;
+      }
+    } else if (shift.id) {
+      s.flags['paradigm-' + shift.id] = true;
+    }
+    Game.addLog(`Paradigm shift unlocked: ${shift.name}. ${shift.flavor || ''}`, 'tier');
+    if (Game.events && Game.events.scriptedBeat) {
+      Game.events.scriptedBeat('paradigm-' + shift.id);
+    }
+    // Per-model paradigm shift moment on the model that triggered it
+    if (Game.events && Game.events.onParadigmShift) {
+      const triggerModel = (s.models || []).find(m => m.tier === run.modelTier)
+        || (s.models || [])[s.models.length - 1];
+      Game.events.onParadigmShift(shift, triggerModel);
+    }
+    if (Game.ui && Game.ui.refresh) Game.ui.refresh();
+  }
+
   function handleArchitectureComplete(run) {
     const s = Game.state;
     const c = Game.config;
@@ -500,25 +551,27 @@ Game.training = (function() {
       const shift = Game.paradigmData.pickRandom(takenIds);
       if (shift) {
         s.paradigms.push(shift);
-        if (typeof shift.effect === 'function') {
-          try { shift.effect(s); }
-          catch (e) {
-            console.error('Paradigm effect failed:', shift.id, e);
-            if (shift.id) s.flags['paradigm-' + shift.id] = true;
-          }
-        } else if (shift.id) {
-          s.flags['paradigm-' + shift.id] = true;
+
+        /* Route through the rlhf-sweep minigame if this shift is preference-
+           tuning related and the minigame framework is present. The minigame
+           halts the sim via pendingDecision; we apply the shift on completion
+           with the resulting multipliers. */
+        const eligibleForSweep = shift.id && RLHF_SWEEP_PARADIGM_IDS.indexOf(shift.id) >= 0;
+        const minigameAvailable = Game.minigames
+                                 && Game.minigames.registry
+                                 && Game.minigames.registry['rlhf-sweep'];
+        if (eligibleForSweep && minigameAvailable) {
+          Game.minigames.open('rlhf-sweep', {
+            context: { paradigm: shift, run },
+            onComplete(result) {
+              applyParadigmShift(shift, run, result || {});
+            },
+          });
+          return;
         }
-        Game.addLog(`Paradigm shift unlocked: ${shift.name}. ${shift.flavor || ''}`, 'tier');
-        if (Game.events && Game.events.scriptedBeat) {
-          Game.events.scriptedBeat('paradigm-' + shift.id);
-        }
-        // Per-model paradigm shift moment on the model that triggered it
-        if (Game.events && Game.events.onParadigmShift) {
-          const triggerModel = (s.models || []).find(m => m.tier === run.modelTier)
-            || (s.models || [])[s.models.length - 1];
-          Game.events.onParadigmShift(shift, triggerModel);
-        }
+
+        /* Default flow: apply effect immediately, no minigame. */
+        applyParadigmShift(shift, run, null);
         return;
       }
     }

@@ -2,16 +2,18 @@
 
    Reads Game.state pressures (trust, control, dependence, founder.{stress,
    energy}) and eases CSS custom-properties on :root each tick so the
-   office visibly responds to the run state. Also reconciles the corkboard
-   against state.models, mounting a "polaroid" per trained model.
+   office visibly responds to the run state. Also keeps a model-photo
+   index so TEAM.app's corkboard can render a "polaroid" per trained model
+   without re-deriving identity each render.
 
    No new intervals — this hooks into the existing per-tick UI refresh
    (see Game.ui.refresh -> Game.room.tick). All DOM access is defensive:
    if a node is missing (mobile-hidden, pre-init), we no-op.
 
-   No ES modules. Mutates only document.documentElement.style and the
-   corkboard / phone DOM. State writes are limited to state.flags
-   (phone-ringing flag) so save/load stays clean. */
+   No ES modules. Mutates only document.documentElement.style, the wall
+   clock + phone DOM, and (when present) the office-scene corkboard.
+   State writes are limited to state.flags (phone-ringing flag) so
+   save/load stays clean. */
 
 window.Game = window.Game || {};
 
@@ -22,10 +24,7 @@ Game.room = (function() {
   let nodeRoomBack = null;
   let nodeRoomWindow = null;
   let nodeWindowGlass = null;
-  let nodeCorkboard = null;
   let nodeDeskPhone = null;
-  let nodeMugGlyph = null;
-  let nodePlantGlyph = null;
   let nodeMonitor = null;
 
   function _cacheNodes() {
@@ -33,11 +32,15 @@ Game.room = (function() {
     nodeRoomBack = document.getElementById('room-back');
     nodeRoomWindow = document.getElementById('room-window');
     nodeWindowGlass = document.getElementById('window-glass');
-    nodeCorkboard = document.getElementById('room-corkboard');
     nodeDeskPhone = document.getElementById('desk-phone');
-    nodeMugGlyph = document.querySelector('#desk-mug .mug-glyph');
-    nodePlantGlyph = document.getElementById('plant-glyph');
     nodeMonitor = document.getElementById('monitor');
+  }
+
+  /* The corkboard now lives inside the active TEAM.app scene, so it may
+     not exist on every render (different scene mounted). Look it up
+     fresh each time we need it rather than caching. */
+  function _corkboardNode() {
+    return document.getElementById('office-corkboard');
   }
 
   /* ---- Eased current values (smooth CSS-var animation) ------------------ */
@@ -47,9 +50,7 @@ Game.room = (function() {
     saturation: 1,
     flicker: 0,
     cloud: 0,
-    plant: 1,
     phone: 0,
-    steam: 1,
     yellow: 0,        /* dependence wall tint */
     darkness: 0,      /* trust=0 lighting darkening */
   };
@@ -61,6 +62,10 @@ Game.room = (function() {
 
   /* Track the last tilt application so we don't re-set every tick. */
   let lastPhotoTiltLevel = -1;
+
+  /* Track the last day applied to the wall clock so we don't restart its
+     transition every tick. -1 sentinel forces a first apply at init. */
+  let lastClockDay = -1;
 
   /* Track corkboard photos by modelId so we don't duplicate. */
   const photoIndex = Object.create(null);
@@ -176,7 +181,7 @@ Game.room = (function() {
     const s = Game.state;
     if (!s) {
       return {
-        saturation: 1, flicker: 0, cloud: 0, plant: 1, phone: 0, steam: 1,
+        saturation: 1, flicker: 0, cloud: 0, phone: 0,
         yellow: 0, darkness: 0,
       };
     }
@@ -184,10 +189,6 @@ Game.room = (function() {
     const trust = Math.max(0, Math.min(100, s.trust != null ? s.trust : 100));
     const control = Math.max(0, Math.min(100, s.control != null ? s.control : 100));
     const dependence = Math.max(0, Math.min(100, s.dependence != null ? s.dependence : 0));
-    const founder = s.founder || {};
-    const stress = Math.max(0, Math.min(100, founder.stress != null ? founder.stress : 0));
-    const maxEnergy = Math.max(1, founder.maxEnergy || 100);
-    const energyFrac = Math.max(0, Math.min(1, (founder.energy != null ? founder.energy : maxEnergy) / maxEnergy));
 
     /* Window cloud: rises smoothly as trust drops below 50. */
     const cloud = clamp01((50 - trust) / 50);
@@ -200,13 +201,6 @@ Game.room = (function() {
 
     /* Yellow paint: starts at dep=40, full at dep=85. */
     const yellow = clamp01((dependence - 40) / 45);
-
-    /* Plant vitality: 1 at stress=0, falls to 0.4 at stress=100. */
-    const plant = 0.4 + (1 - stress / 100) * 0.6;
-
-    /* Steam: blended from founder.energy (mostly) and stress. Empty mug =>
-       no steam regardless of stress. */
-    const steam = clamp01(0.2 + 0.7 * energyFrac - 0.3 * (stress / 100));
 
     /* Saturation: world desaturates as the worst pressure worsens. */
     const worstHit = Math.max(
@@ -222,7 +216,7 @@ Game.room = (function() {
     const phone = phoneFlag ? 1 : 0;
 
     return {
-      saturation, flicker, cloud, plant, phone, steam,
+      saturation, flicker, cloud, phone,
       yellow, darkness,
     };
   }
@@ -235,9 +229,7 @@ Game.room = (function() {
     st.setProperty('--decay-saturation', cur.saturation.toFixed(3));
     st.setProperty('--decay-flicker',    cur.flicker.toFixed(3));
     st.setProperty('--window-cloud',     cur.cloud.toFixed(3));
-    st.setProperty('--plant-vitality',   cur.plant.toFixed(3));
     st.setProperty('--phone-urgency',    cur.phone.toFixed(3));
-    st.setProperty('--steam-rate',       cur.steam.toFixed(3));
 
     /* Wall yellowing — overlay on .room-back via a private CSS var; we
        set background-blend without touching styles.css. */
@@ -261,12 +253,6 @@ Game.room = (function() {
       }
     }
 
-    /* Mug glyph fades as steam dies (energy gone). */
-    if (nodeMugGlyph) {
-      const op = (0.55 + 0.45 * cur.steam).toFixed(3);
-      nodeMugGlyph.style.opacity = op;
-    }
-
     /* Phone ringing class — toggled from the flag, not the eased value. */
     if (nodeDeskPhone) {
       const ringing = !!(Game.state && Game.state.flags && Game.state.flags['phone-ringing']);
@@ -276,12 +262,15 @@ Game.room = (function() {
 
     /* Photo tilt: bucketed by control band so we apply at most a couple
        times per run. At control < 25 we add a per-photo nudge to its
-       baseline rotation. */
+       baseline rotation. The corkboard now lives in the office scene; if
+       it's not currently mounted we skip — when it remounts, addModelPhoto
+       reapplies tilt to the new node. */
     const tiltLevel = (Game.state && Game.state.control != null && Game.state.control < 25) ? 1 : 0;
     if (tiltLevel !== lastPhotoTiltLevel) {
       lastPhotoTiltLevel = tiltLevel;
-      if (nodeCorkboard) {
-        const photos = nodeCorkboard.querySelectorAll('.corkboard-photo');
+      const cork = _corkboardNode();
+      if (cork) {
+        const photos = cork.querySelectorAll('.corkboard-photo');
         photos.forEach((p, i) => {
           const baseAttr = p.getAttribute('data-base-rot');
           const base = baseAttr != null ? parseFloat(baseAttr) : 0;
@@ -290,14 +279,43 @@ Game.room = (function() {
         });
       }
     }
+
+    /* Wall clock — one rotation step per in-game day. The minute hand
+       sweeps 360° over a 7-day week; the hour hand creeps 30° per day
+       (a 12-day "clock day"). Only set vars when the day actually
+       changed so we don't re-trigger transitions every tick. */
+    const dayNum = (Game.state && typeof Game.state.day === 'number')
+      ? Math.floor(Game.state.day)
+      : 0;
+    if (dayNum !== lastClockDay) {
+      lastClockDay = dayNum;
+      const minRot = ((dayNum % 7) / 7) * 360;
+      const hourRot = (dayNum % 12) * 30;
+      st.setProperty('--room-clock-min-rot', minRot.toFixed(1) + 'deg');
+      st.setProperty('--room-clock-hour-rot', hourRot.toFixed(1) + 'deg');
+    }
   }
 
-  /* ---- corkboard reconciliation ---------------------------------------- */
+  /* ---- corkboard reconciliation ----------------------------------------
+     The corkboard lives in TEAM.app now — it may not be mounted on every
+     tick. When it isn't, we silently no-op; when it remounts (player opens
+     TEAM.app), the office scene's reconcile pass repopulates it from the
+     surviving photoIndex / state.models. */
 
   function _reconcileCorkboard() {
-    if (!nodeCorkboard) return;
+    const cork = _corkboardNode();
+    if (!cork) return;
     const s = Game.state;
     const models = (s && Array.isArray(s.models)) ? s.models : [];
+
+    /* Drop any cached entries whose DOM node has been detached (scene
+       remount discards them). Any model still in state.models will be
+       re-added below. */
+    Object.keys(photoIndex).forEach(k => {
+      const node = photoIndex[k];
+      if (!node || !node.isConnected) delete photoIndex[k];
+    });
+
     /* Add photos for any unseen models. */
     for (let i = 0; i < models.length; i++) {
       const m = models[i];
@@ -317,6 +335,21 @@ Game.room = (function() {
         delete photoIndex[k];
       }
     });
+
+    /* Empty-state hint: when no photos are pinned yet, show a quiet line
+       so the panel doesn't read as a broken container. */
+    const hasPhotos = !!cork.querySelector('.corkboard-photo');
+    let empty = cork.querySelector('.corkboard-empty');
+    if (!hasPhotos) {
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'corkboard-empty';
+        empty.textContent = 'No models pinned yet.';
+        cork.appendChild(empty);
+      }
+    } else if (empty) {
+      empty.remove();
+    }
   }
 
   /* ---- API -------------------------------------------------------------- */
@@ -329,32 +362,33 @@ Game.room = (function() {
     cur.saturation = 1;
     cur.flicker = 0;
     cur.cloud = 0;
-    cur.plant = 1;
     cur.phone = 0;
-    cur.steam = 1;
     cur.yellow = 0;
     cur.darkness = 0;
 
     /* Wipe any lingering pulse overrides from a prior run. */
     Object.keys(pulses).forEach(k => delete pulses[k]);
 
-    /* Clear the corkboard so a fresh run starts empty. */
-    if (nodeCorkboard) nodeCorkboard.innerHTML = '';
+    /* Drop any photos cached from the prior run; the office scene will
+       repopulate from state.models when TEAM.app next renders. */
     Object.keys(photoIndex).forEach(k => delete photoIndex[k]);
+    const cork = _corkboardNode();
+    if (cork) cork.innerHTML = '';
 
     /* Clear inline styles we may have set last run. */
     if (nodeRoomBack) {
       nodeRoomBack.style.filter = '';
       nodeRoomBack.style.boxShadow = '';
     }
-    if (nodeMugGlyph) nodeMugGlyph.style.opacity = '';
     if (nodeDeskPhone) nodeDeskPhone.classList.remove('ringing');
 
     lastProtesterLevel = -1;
     _renderProtesters(0);
     lastPhotoTiltLevel = -1;
+    lastClockDay = -1;
 
-    /* Defensive: pre-existing models on a loaded save show up immediately. */
+    /* Defensive: pre-existing models on a loaded save show up immediately
+       once the corkboard scene mounts. */
     _reconcileCorkboard();
 
     /* Push baseline CSS vars now so we don't wait a tick. */
@@ -372,8 +406,6 @@ Game.room = (function() {
     cur.saturation = lerp(cur.saturation, target.saturation, k);
     cur.flicker    = lerp(cur.flicker,    target.flicker,    k);
     cur.cloud      = lerp(cur.cloud,      target.cloud,      k);
-    cur.plant      = lerp(cur.plant,      target.plant,      k);
-    cur.steam      = lerp(cur.steam,      target.steam,      k);
     cur.yellow     = lerp(cur.yellow,     target.yellow,     k * 0.6);
     cur.darkness   = lerp(cur.darkness,   target.darkness,   k);
 
@@ -427,9 +459,15 @@ Game.room = (function() {
   }
 
   function addModelPhoto(model) {
-    if (!nodeCorkboard || !model || model.id == null) return;
+    const cork = _corkboardNode();
+    if (!cork || !model || model.id == null) return;
     const key = String(model.id);
-    if (photoIndex[key]) return photoIndex[key];
+    if (photoIndex[key] && photoIndex[key].isConnected) return photoIndex[key];
+
+    /* Drop any "no models pinned" empty-state line — a real photo is
+       arriving. */
+    const empty = cork.querySelector('.corkboard-empty');
+    if (empty) empty.remove();
 
     const crest = _crestFor(model);
     const rot = _stableRotation(model.id);
@@ -448,7 +486,7 @@ Game.room = (function() {
     labelEl.textContent = label;
     el.appendChild(labelEl);
 
-    nodeCorkboard.appendChild(el);
+    cork.appendChild(el);
     photoIndex[key] = el;
     /* New photo arrived — re-apply current tilt level so it matches siblings. */
     if (lastPhotoTiltLevel === 1) {

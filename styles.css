@@ -701,6 +701,154 @@ button {
   animation: fadeIn 0.2s ease forwards;
 }
 
+/* =================================================================
+   GPU Allocation — drag-and-drop zone board (Operations scene)
+   Replaces the legacy click-to-cycle .gpu-spec-cell grid.
+   Per STYLE_GUIDE §6 (chiseled bevels), §7 (4px rhythm),
+   §8 (0.15s default transitions, no glows or bounces).
+   ================================================================= */
+.gpu-alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gpu-alloc-empty {
+  padding: 16px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-mute);
+  background: var(--paper-deep);
+  border: 1px dashed var(--platinum-deep);
+  text-align: center;
+}
+
+.gpu-zone {
+  position: relative;
+  border: 1px dashed var(--platinum-deep);
+  background: var(--paper-deep);
+  padding: 12px;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.gpu-zone .zone-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gpu-zone .zone-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.gpu-zone .zone-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  letter-spacing: 1px;
+}
+.gpu-zone .zone-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.gpu-zone .zone-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  min-height: 64px;
+}
+.gpu-zone.drop-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.gpu-zone.drop-rejected {
+  border-color: var(--alarm);
+  background: rgba(168, 50, 50, 0.05);
+  animation: zone-shake 0.2s ease;
+}
+@keyframes zone-shake {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-2px); }
+}
+.gpu-zone .zone-banner {
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--alarm);
+  background: rgba(168, 50, 50, 0.06);
+  border-left: 2px solid var(--alarm);
+  letter-spacing: 0.5px;
+  transition: opacity 0.15s ease;
+}
+.gpu-zone .zone-banner.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* GPU card — chiseled paper chip with mono ID + cpu pictogram + spec tag */
+.gpu-card {
+  width: 56px;
+  height: 64px;
+  background: var(--paper);
+  border-top: 1px solid var(--platinum-light);
+  border-left: 1px solid var(--platinum-light);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  padding: 6px 4px;
+  cursor: grab;
+  user-select: none;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+              opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+.gpu-card:hover { border-color: var(--accent-soft); }
+.gpu-card:focus-visible { border-color: var(--accent); }
+.gpu-card:active,
+.gpu-card.dragging,
+.gpu-card.held {
+  cursor: grabbing;
+  opacity: 0.85;
+  transform: scale(0.95);
+  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.3);
+}
+.gpu-card.busy {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--paper-deep);
+}
+.gpu-card.busy:hover { border-color: var(--platinum-deep); }
+.gpu-card .gc-id {
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 0.5px;
+}
+.gpu-card .icon { color: var(--ink-soft); }
+.gpu-card.spec-training  .icon { color: var(--spec-training); }
+.gpu-card.spec-research  .icon { color: var(--spec-research); }
+.gpu-card.spec-inference .icon { color: var(--spec-inference); }
+.gpu-card .gc-spec {
+  font-size: 8px;
+  color: var(--ink-mute);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
 .personnel-cell {
   display: flex;
   flex-direction: column;
@@ -2057,6 +2205,562 @@ html[data-stage="3"] .panel h2 { letter-spacing: 2.5px; opacity: 0.7; }
 html[data-stage="3"] #vitals-widget { opacity: 0.7; }
 html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
 
+/* =================================================================
+   MINIGAME OVERLAY — generic shell for any registered minigame.
+   See MINIGAMES.md §4. Per-minigame UI lives in its own module.
+   ================================================================= */
+.minigame-overlay {
+  background: rgba(20, 22, 28, 0.92);
+  z-index: 1100;
+}
+.minigame-frame {
+  background: var(--paper);
+  border-top: 1px solid var(--platinum-light);
+  border-left: 1px solid var(--platinum-light);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  box-shadow: 1px 1px 0 var(--ink-soft);
+  width: min(720px, 92vw);
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+}
+.minigame-titlebar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--platinum-deep);
+  background: linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+}
+.minigame-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+  position: relative;
+  padding-bottom: 2px;
+}
+.minigame-title::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 60%;
+  bottom: -1px;
+  height: 1px;
+  background: var(--accent);
+}
+.minigame-kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--ink-mute);
+}
+.minigame-desc {
+  padding: 10px 14px;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  border-bottom: 1px solid var(--platinum);
+}
+.minigame-content {
+  flex: 1 1 auto;
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--paper);
+  min-height: 220px;
+}
+.minigame-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--platinum-deep);
+  background: var(--paper-deep);
+}
+.minigame-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--ink-mute);
+}
+.minigame-actions { display: flex; gap: 8px; }
+.minigame-actions .action-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+
+/* === Shared minigame primitives === */
+.mg-card {
+  background: var(--paper);
+  border-top: 1px solid var(--platinum-light);
+  border-left: 1px solid var(--platinum-light);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  user-select: none;
+}
+.mg-card:hover { border-color: var(--accent); }
+.mg-card.selected { background: var(--accent-soft); border-color: var(--accent); }
+.mg-card.disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mg-flag-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.mg-flag-btn {
+  flex: 1; max-width: 200px;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.mg-flag-btn.flag-ok { border: 1px solid var(--good); color: var(--good); background: transparent; }
+.mg-flag-btn.flag-ok:hover { background: var(--good); color: var(--paper); }
+.mg-flag-btn.flag-bad { border: 1px solid var(--alarm); color: var(--alarm); background: transparent; }
+.mg-flag-btn.flag-bad:hover { background: var(--alarm); color: var(--paper); }
+
+.mg-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mg-pair-side {
+  background: var(--paper-deep);
+  border: 1px solid var(--platinum-deep);
+  padding: 12px;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  line-height: 1.55;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 140px;
+}
+.mg-pair-side:hover { border-color: var(--accent); background: var(--paper); }
+.mg-pair-side.picked { border-color: var(--accent); background: var(--accent-soft); }
+.mg-pair-side .pair-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+}
+
+.mg-progress { display: flex; gap: 4px; margin-bottom: 12px; }
+.mg-progress-cell { flex: 1; height: 4px; background: var(--platinum-deep); }
+.mg-progress-cell.done { background: var(--accent); }
+.mg-progress-cell.current { background: var(--accent-soft); }
+
+.mg-banner {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--alarm);
+  padding: 6px 10px;
+  background: rgba(168, 50, 50, 0.06);
+  border: 1px solid var(--alarm);
+  margin-bottom: 8px;
+}
+
+/* === Red Team minigame === */
+.mg-rt-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Anchor against the framework's content area; keeps layout stable
+     between excerpts when a fade is in flight. */
+  min-height: 220px;
+}
+
+.mg-rt-progress {
+  /* Shared `.mg-progress` primitive owns most styling; this is a hook for
+     layout tweaks specific to the audit (none for now). */
+  margin-bottom: 4px;
+}
+
+/* Countdown bar: drains left→right over the 5-second per-excerpt window.
+   Honors --anim-mult: when Reduced motion is on, the JS skips the
+   animation entirely and the bar stays full while the digit readout in
+   the footer carries the time signal. */
+.mg-rt-countdown {
+  height: 4px;
+  background: var(--platinum-deep);
+  border: 1px solid var(--ink-mute);
+  border-radius: 0;
+}
+.mg-rt-countdown-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  /* Transition is set inline by JS so the duration matches anim-mult. */
+}
+
+/* Excerpt block — paper-deep panel, serif quote. */
+.mg-rt-excerpt {
+  background: var(--paper-deep);
+  border: 1px solid var(--platinum);
+  padding: 12px 14px;
+  /* Stops layout jumping when text length varies between excerpts. */
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.mg-rt-excerpt-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+}
+.mg-rt-excerpt-text {
+  font-family: Georgia, 'EB Garamond', serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+  /* No quotation marks via ::before — the text already implies a quote. */
+}
+
+.mg-rt-flag-row {
+  margin-top: 8px;
+  /* Generous tap targets per the spec. */
+}
+.mg-rt-flag-row .mg-flag-btn {
+  padding: 14px 10px;
+  min-width: 140px;
+}
+
+/* Cross-fade between excerpts. JS sets `.mg-rt-fading` for the brief
+   gap, then clears it after swapping text. Honors anim-mult; if mult is
+   0, JS keeps the duration at zero and this class never lingers. */
+.mg-rt-root.mg-rt-fading .mg-rt-excerpt,
+.mg-rt-root.mg-rt-fading .mg-rt-flag-row {
+  opacity: 0.35;
+  transition: opacity calc(0.2s * var(--anim-mult)) ease;
+}
+.mg-rt-root .mg-rt-excerpt,
+.mg-rt-root .mg-rt-flag-row {
+  transition: opacity calc(0.2s * var(--anim-mult)) ease;
+}
+
+/* === Constitutional minigame === */
+.cd-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cd-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--paper-deep);
+  border-top: 1px solid var(--platinum-deep);
+  border-left: 1px solid var(--platinum-deep);
+  border-right: 1px solid var(--platinum-light);
+  border-bottom: 1px solid var(--platinum-light);
+}
+.cd-tally-row {
+  display: grid;
+  grid-template-columns: 88px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+}
+.cd-tally-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--ink-mute);
+}
+.cd-tally-bar {
+  height: 6px;
+  background: var(--platinum-deep);
+  border: 1px solid var(--ink-mute);
+}
+.cd-tally-fill {
+  height: 100%;
+  background: var(--good);
+  transition: width 0.4s ease, background-color 0.4s ease;
+}
+.cd-reduced-motion .cd-tally-fill { transition: none; }
+.cd-tally-fill.good { background: var(--good); }
+.cd-tally-fill.warn { background: var(--warn); }
+.cd-tally-fill.bad  { background: var(--bad); }
+.cd-tally-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink);
+  text-align: right;
+}
+
+.cd-conflict-banner {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--alarm);
+  padding: 6px 10px;
+  background: rgba(168, 50, 50, 0.08);
+  border: 1px solid var(--alarm);
+}
+
+.cd-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cd-col { display: flex; flex-direction: column; gap: 8px; }
+.cd-col-head {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  border-bottom: 1px dotted var(--ink-mute);
+  padding-bottom: 4px;
+}
+
+.cd-candidates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cd-card {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 64px;
+}
+.cd-card-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+}
+.cd-card-blurb {
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.cd-card.selected .cd-card-label { color: var(--ink); }
+.cd-card.selected .cd-card-blurb { color: var(--ink-soft); }
+
+.cd-charter-board {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--paper-deep);
+  border-top: 1px solid var(--platinum-deep);
+  border-left: 1px solid var(--platinum-deep);
+  border-right: 1px solid var(--platinum-light);
+  border-bottom: 1px solid var(--platinum-light);
+}
+.cd-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  min-height: 28px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  border-top: 1px solid var(--platinum);
+  border-left: 1px solid var(--platinum);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  background: var(--paper);
+}
+.cd-reduced-motion .cd-slot { transition: none; }
+.cd-slot-num {
+  color: var(--ink-mute);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.cd-slot-text {
+  flex: 1;
+  color: var(--ink);
+}
+.cd-slot-empty {
+  background: var(--paper);
+  cursor: default;
+}
+.cd-slot-empty .cd-slot-text {
+  color: var(--ink-mute);
+  font-style: italic;
+  font-family: Georgia, serif;
+  font-size: 11px;
+}
+.cd-slot-filled:hover {
+  border-color: var(--accent);
+}
+.cd-slot-conflict {
+  border-color: var(--alarm);
+  background: rgba(168, 50, 50, 0.06);
+}
+.cd-slot-conflict .cd-slot-text {
+  color: var(--ink);
+}
+.cd-charter-footnote {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--ink-mute);
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .cd-workspace { grid-template-columns: 1fr; }
+  .cd-candidates-grid { grid-template-columns: 1fr; }
+}
+
+/* === RLHF Sweep minigame === */
+.rls-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rls-progress { margin-bottom: 8px; }
+.rls-timer-wrap {
+  height: 3px;
+  background: var(--platinum-deep);
+  border: 1px solid var(--ink-mute);
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.rls-timer-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  /* JS sets transition inline so the per-pair countdown is exact. */
+}
+.rls-prompt-block {
+  background: var(--paper-deep);
+  border-top: 1px solid var(--platinum-deep);
+  border-left: 1px solid var(--platinum-deep);
+  border-right: 1px solid var(--platinum-light);
+  border-bottom: 1px solid var(--platinum-light);
+  padding: 8px 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.rls-prompt-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--ink-mute);
+  flex-shrink: 0;
+}
+.rls-prompt-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  font-style: italic;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+.rls-pair { margin-top: 2px; }
+.rls-side {
+  position: relative;
+  transition: opacity calc(0.15s * var(--anim-mult, 1)) ease,
+              border-color 0.15s ease,
+              background 0.15s ease;
+}
+.rls-side .pair-label { color: var(--accent); }
+.rls-hint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--ink-mute);
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+.rls-reduced .rls-side,
+.rls-reduced .rls-timer-bar { transition: none !important; }
+
+/* Result reveal */
+.rls-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px;
+}
+.rls-summary-head {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 1px solid var(--platinum-deep);
+  padding-bottom: 4px;
+}
+.rls-summary-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--paper-deep);
+  border-top: 1px solid var(--platinum-deep);
+  border-left: 1px solid var(--platinum-deep);
+  border-right: 1px solid var(--platinum-light);
+  border-bottom: 1px solid var(--platinum-light);
+  padding: 10px 12px;
+}
+.rls-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  border-bottom: 1px dotted var(--ink-mute);
+  padding-bottom: 3px;
+}
+.rls-summary-row:last-child { border-bottom: none; padding-bottom: 0; }
+.rls-summary-key { color: var(--ink-mute); }
+.rls-summary-val { color: var(--ink); font-weight: 600; }
+.rls-summary-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 0;
+}
+.rls-tag-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr 0.4fr;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  letter-spacing: 0.3px;
+}
+.rls-tag-name { color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; }
+.rls-tag-counts { color: var(--ink-soft); }
+.rls-tag-ratio { color: var(--ink); text-align: right; }
+.rls-summary-note {
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  padding: 4px 2px 0;
+}
+
+@media (max-width: 640px) {
+  .rls-pair.mg-pair { grid-template-columns: 1fr; }
+  .rls-prompt-block { flex-direction: column; gap: 4px; }
+}
+
 /* ===== Personnel quirks + Team Chemistry ===== */
 .quirk-row {
   display: inline-flex;
@@ -2163,9 +2867,10 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   --decay-saturation: 1;       /* 0..1; multiplied to filter saturate */
   --decay-flicker: 0;          /* 0..1; controls bulb flicker intensity */
   --window-cloud: 0;           /* 0..1; window darkens with Control loss */
-  --plant-vitality: 1;         /* 0..1; plant wilt */
   --phone-urgency: 0;          /* 0..1; phone glow + ring pulse */
-  --steam-rate: 1;             /* 0..1; mug steam rate */
+  /* Wall-clock day rotations, set by js/room.js as the in-game day advances. */
+  --room-clock-min-rot: 0deg;
+  --room-clock-hour-rot: 0deg;
 }
 
 /* Hide legacy scene-nav strip */
@@ -2225,10 +2930,12 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   pointer-events: none;
 }
 
-/* The window — small viewport into the outside world */
+/* The window — small viewport into the outside world.
+   Tucked toward the upper-left corner so the wall reads as sparse, not
+   orphaned. */
 .room-window {
   position: absolute;
-  top: 70px; left: 6%;
+  top: 62px; left: 4%;
   width: 220px;
   height: 150px;
   pointer-events: none;
@@ -2313,13 +3020,94 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   pointer-events: none;
 }
 
-/* Wall corkboard — model photos pinned to the wall over time */
-.room-corkboard {
+/* Wall clock — small CSS-drawn clock on the right side of the wall.
+   Hands are rotated by js/room.js once per in-game day. Pure CSS, no SVG. */
+.room-clock {
   position: absolute;
-  top: 72px; right: 6%;
-  width: 240px;
-  min-height: 112px;
-  /* Muted cork — desaturated tan, low contrast against paper wall */
+  top: 80px; right: 8%;
+  width: 60px;
+  height: 60px;
+  pointer-events: none;
+  filter: saturate(var(--decay-saturation));
+  transition: filter 1.5s ease;
+}
+.room-clock-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, var(--paper) 0%, var(--paper-deep) 80%);
+  /* Chiseled platinum bezel — same idiom as the window frame */
+  border-top: 1px solid var(--platinum-deep);
+  border-left: 1px solid var(--platinum-deep);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  box-shadow:
+    inset 1px 1px 0 var(--platinum-light),
+    inset -1px -1px 0 var(--platinum-light),
+    0 1px 2px rgba(26, 29, 36, 0.18);
+}
+.room-clock-tick {
+  position: absolute;
+  background: var(--ink-mute);
+  pointer-events: none;
+}
+.room-clock-tick-12,
+.room-clock-tick-6 {
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  margin-left: -0.5px;
+}
+.room-clock-tick-12 { top: 4px; }
+.room-clock-tick-6  { bottom: 4px; }
+.room-clock-tick-3,
+.room-clock-tick-9 {
+  top: 50%;
+  height: 1px;
+  width: 4px;
+  margin-top: -0.5px;
+}
+.room-clock-tick-3 { right: 4px; }
+.room-clock-tick-9 { left: 4px; }
+.room-clock-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  background: var(--ink);
+  transform-origin: 50% 100%;
+  border-radius: 0;
+  /* Smooth tick — the day-step is small enough that 0.4s reads as
+     "the hand just moved" without violating §8 (no bounces). */
+  transition: transform 0.4s ease;
+}
+.room-clock-hour {
+  width: 2px;
+  margin-left: -1px;
+  height: 16px;
+  transform: rotate(var(--room-clock-hour-rot, 0deg));
+}
+.room-clock-min {
+  width: 1px;
+  margin-left: -0.5px;
+  height: 22px;
+  transform: rotate(var(--room-clock-min-rot, 0deg));
+}
+.room-clock-pivot {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 4px; height: 4px;
+  margin: -2px 0 0 -2px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+/* Office corkboard — moved out of the room layer into TEAM.app.
+   Same cork-and-chrome idiom as before, just rescoped to live inside the
+   OS window panel rather than on the wall. */
+#office-corkboard {
+  /* Muted cork — desaturated tan, low contrast against paper-deep panel */
   background:
     repeating-radial-gradient(circle at 20% 30%, rgba(26, 29, 36, 0.04) 0 1px, transparent 1px 4px),
     repeating-radial-gradient(circle at 70% 60%, rgba(26, 29, 36, 0.03) 0 1px, transparent 1px 5px),
@@ -2339,13 +3127,18 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  padding: 12px;
-  gap: 8px;
-  pointer-events: none;
-  filter: saturate(var(--decay-saturation));
-  transition: filter 1.5s ease;
+  padding: 16px 12px 20px 12px;
+  gap: 12px;
+  min-height: 96px;
 }
-.corkboard-photo {
+#office-corkboard .corkboard-empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--ink-mute);
+  padding: 4px 8px;
+}
+#office-corkboard .corkboard-photo {
   width: 48px; height: 48px;
   background: var(--paper);
   border: 1px solid var(--ink-mute);
@@ -2360,7 +3153,7 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   color: var(--ink);
   padding: 4px;
 }
-.corkboard-photo::before {
+#office-corkboard .corkboard-photo::before {
   /* Pin — small persimmon dot */
   content: '';
   position: absolute;
@@ -2371,7 +3164,7 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   background: var(--accent);
   box-shadow: 0 1px 0 rgba(26, 29, 36, 0.3);
 }
-.corkboard-photo .photo-label {
+#office-corkboard .corkboard-photo .photo-label {
   position: absolute;
   bottom: -12px;
   left: 50%;
@@ -2454,28 +3247,64 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   pointer-events: none;
   z-index: -1;
 }
-.desk-object:hover { transform: translateY(-1px); }
+.desk-object:hover {
+  transform: translateY(-2px);
+}
+.desk-object:hover::after {
+  /* Soft shadow grows with the lift — same elliptical contact shadow,
+     just slightly larger and softer. */
+  width: 36px;
+  filter: blur(2px);
+  background: radial-gradient(ellipse at center,
+    rgba(26, 28, 34, 0.5) 0%,
+    rgba(26, 28, 34, 0) 70%);
+}
+.desk-object::after {
+  /* Per spec — soft elliptical shadow underneath, slate-deep, 4px blur,
+     0.4 opacity. Re-declares the base shape with the requested colour. */
+  background: radial-gradient(ellipse at center,
+    rgba(26, 28, 34, 0.4) 0%,
+    rgba(26, 28, 34, 0) 70%);
+  filter: blur(4px);
+  transition: width 0.15s ease, filter 0.15s ease;
+}
 .desk-object .phone-glyph,
-.desk-object .book-glyph,
-.desk-object .mug-glyph,
-.desk-object .plant-glyph {
-  /* Sized for refined 24px CSS/SVG icons (icon-lg per STYLE_GUIDE §4),
-     not 32px emoji. Falls back gracefully if emoji is still rendered. */
-  font-size: 24px;
+.desk-object .book-glyph {
+  /* Legacy class hooks kept for any callers still rendering glyph spans. */
+  font-size: 32px;
   display: block;
   line-height: 1;
   color: var(--ink);
   filter: drop-shadow(0 1px 2px rgba(26, 29, 36, 0.5));
 }
 .desk-object .icon {
-  width: 24px;
-  height: 24px;
+  /* 32px icon per spec — both phone and handbook share this footprint. */
+  width: 32px;
+  height: 32px;
   color: var(--ink);
   filter: drop-shadow(0 1px 2px rgba(26, 29, 36, 0.5));
 }
+.desk-object-label {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  /* On the dark slate desk surface, ink-mute would disappear. Use a
+     paper-tinted soft white at low opacity instead — barely there per
+     spec, but legible. */
+  color: rgba(243, 237, 225, 0.45);
+  text-transform: uppercase;
+  pointer-events: none;
+}
 
-/* Phone — placement and ring indicator */
-#desk-phone { left: 6%; }
+/* Phone — slightly left of desk centre, with generous breathing room
+   between it and the handbook (~25% of desk width = ~12.5% offset each
+   side from centre, minus half the icon width to keep the *centre* of
+   the icon at the offset point). */
+#desk-phone { left: calc(50% - 12.5%); transform: translateX(-50%); }
+#desk-phone:hover { transform: translateX(-50%) translateY(-2px); }
 #desk-phone .phone-ring-ind {
   position: absolute;
   top: -4px; right: -4px;
@@ -2495,46 +3324,22 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   50% { transform: rotate(6deg); }
 }
 
-/* Handbook — the Lab Director's Handbook (stub for now) */
-#desk-handbook { left: 16%; }
+/* Handbook — slightly right of desk centre. Mirrors the phone offset. */
+#desk-handbook { left: calc(50% + 12.5%); transform: translateX(-50%); }
+#desk-handbook:hover { transform: translateX(-50%) translateY(-2px); }
 #desk-handbook .book-glyph {
   filter: drop-shadow(0 1px 2px rgba(26, 29, 36, 0.5));
 }
 
-/* Mug + steam */
-#desk-mug { left: 26%; }
-#desk-mug .mug-steam {
-  position: absolute;
-  top: -8px; left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: rgba(107, 110, 118, 0.55);
-  opacity: var(--steam-rate);
-  animation: steam-rise 2.4s ease-in-out infinite;
-}
-@keyframes steam-rise {
-  0%   { opacity: 0; transform: translate(-50%, 0); }
-  50%  { opacity: var(--steam-rate, 0.8); transform: translate(-50%, -6px); }
-  100% { opacity: 0; transform: translate(-50%, -14px); }
-}
-
-/* Plant */
-#desk-plant { right: 6%; }
-#desk-plant .plant-glyph {
-  filter:
-    drop-shadow(0 1px 2px rgba(26, 29, 36, 0.5))
-    brightness(calc(0.7 + var(--plant-vitality) * 0.4));
-  transform-origin: center bottom;
-  transform: scale(calc(0.85 + var(--plant-vitality) * 0.2));
-  transition: filter 1.5s ease, transform 1.5s ease;
-}
-
-/* --- The monitor: main interactive surface --- */
+/* --- The monitor: main interactive surface ---
+   Fixed footprint. Outer box never grows or shrinks based on app content;
+   if an app's content overflows it scrolls inside the app body. */
 .monitor {
   position: relative;
   z-index: 5;
   margin: 60px auto 180px auto;
   width: min(1100px, 92vw);
+  height: 540px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -2577,6 +3382,11 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
     0 8px 28px rgba(0,0,0,0.6);
   position: relative;
   overflow: hidden;
+  /* Fill the locked monitor height (minus the 24px bezel above). */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .monitor-screen::before {
   /* Scanline overlay — terminal vibe */
@@ -2620,7 +3430,8 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
 .terminal {
   display: flex;
   flex-direction: column;
-  min-height: 480px;
+  flex: 1 1 auto;
+  min-height: 0;
   font-family: var(--font-mono);
   position: relative;
   z-index: 5;
@@ -2716,10 +3527,13 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
 .os-btn-glyph { display: block; margin-top: -2px; font-weight: 600; }
 .os-btn-close .os-btn-glyph { margin-top: -1px; }
 
-/* --- Window body: chiseled inset (paper-deep field, inverse bevel) --- */
+/* --- Window body: chiseled inset (paper-deep field, inverse bevel).
+   Fills the OS window between the titlebar and taskbar; scrolls *inside*
+   when content overflows so the monitor's outer footprint stays locked. */
 .app-window,
 .os-window-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   background: var(--paper-deep);
   border-top: 1px solid var(--platinum-deep);
   border-left: 1px solid var(--platinum-deep);
@@ -2727,7 +3541,6 @@ html[data-stage="3"] #vitals-widget:hover { opacity: 1; }
   border-bottom: 1px solid var(--platinum-light);
   padding: 12px;
   overflow-y: auto;
-  max-height: 60vh;
   color: var(--ink);
   transition: opacity 0.25s ease;
 }
@@ -3118,21 +3931,21 @@ html[data-stage="3"] .desk-layer::before {
       var(--slate) 30%,
       var(--slate-deep) 100%);
 }
-html[data-stage="3"] .room-corkboard,
-html[data-stage="3"] .room-window {
+html[data-stage="3"] .room-window,
+html[data-stage="3"] .room-clock {
   filter: saturate(0.5) brightness(0.94);
 }
 
 /* Mobile / small viewport — hide off-screen wall objects, keep monitor focal */
 @media (max-width: 720px) {
-  .room-window, .room-corkboard, #desk-plant { display: none; }
+  .room-window, .room-clock { display: none; }
   .desk-layer { height: 70px; }
-  .monitor { margin: 30px 8px 100px; }
-  .desk-object .phone-glyph, .desk-object .book-glyph, .desk-object .mug-glyph { font-size: 24px; }
+  .monitor { margin: 30px 8px 100px; height: auto; min-height: 480px; }
+  .desk-object .phone-glyph, .desk-object .book-glyph { font-size: 24px; }
+  .desk-object .icon { width: 26px; height: 26px; }
 }
 
 /* When pendingDecision (modal) is open, mute room ambient motion to reduce distraction */
-body.has-modal #desk-mug .mug-steam,
 body.has-modal #monitor-led { animation-play-state: paused; }
 
 /* =================================================================
@@ -3515,30 +4328,23 @@ body.has-modal #monitor-led { animation-play-state: paused; }
   height: 10px;
 }
 
-/* Desk objects (phone, book, mug, plant) — sized like physical things,
-   tinted slightly so each retains identity without color clashes. */
+/* Desk objects (phone, handbook) — sized like physical things, tinted
+   slightly so each retains identity without color clashes. The desk now
+   holds only narrative-functional objects; mug + plant were retired. */
 .desk-object .icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: block;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.55));
   color: var(--paper, #f3ede1);
 }
 #desk-phone   .icon { color: #cfc7b6; }
 #desk-handbook .icon { color: #d4c08a; }
-#desk-mug     .icon { color: #ddd5c5; }
-#desk-plant   .icon { color: #9ec18a; }
 
 #desk-phone.ringing .icon { animation: phone-ring 0.4s steps(2) infinite; }
 #desk-handbook:hover .icon {
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.7)) brightness(1.12);
   color: #e6cf94;
-}
-#desk-plant .icon {
-  transform-origin: center bottom;
-  transform: scale(calc(0.8 + var(--plant-vitality) * 0.3));
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.55)) brightness(calc(0.7 + var(--plant-vitality) * 0.45));
-  transition: filter 1.5s ease, transform 1.5s ease;
 }
 
 /* Vitals-widget portrait frame — the founder glyph is player content,
@@ -3567,3 +4373,337 @@ body.has-modal #monitor-led { animation-play-state: paused; }
 }
 
 /* === End Icons === */
+
+/* =================================================================
+   Game shell — boot screen / main menu / options
+   Layered above everything else (z-index 9000+). Boot uses slate-deep,
+   menu and options share a paper-grain on slate-deep aesthetic so the
+   shell reads as "system" before we open the warm-paper game world.
+   ================================================================= */
+
+:root {
+  /* JS sets this to 0 (reduced), 1 (standard), or 2 (cinematic).
+     Default 1 so transitions work even before settings load. */
+  --anim-mult: 1;
+}
+
+/* High-contrast mode — boost ink/paper contrast site-wide. */
+body.high-contrast {
+  --ink:        #000000;
+  --ink-soft:   #1a1d24;
+  --ink-mute:   #3a3f4a;
+  --paper:      #fff8e7;
+  --paper-deep: #f0e6cf;
+  --platinum-deep: #4a4742;
+}
+
+/* ----- Boot screen ----- */
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  background: var(--slate-deep);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+.boot-screen.boot-fading { opacity: 0; pointer-events: none; }
+
+.boot-inner {
+  width: min(620px, 90vw);
+  padding: 32px;
+}
+
+.boot-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  line-height: 1.55;
+}
+
+.boot-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  opacity: 0;
+  animation: boot-line-in 0.18s ease forwards;
+}
+@keyframes boot-line-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.boot-line-label { color: var(--paper); }
+.boot-line-value { color: var(--accent-soft); }
+.boot-line-header .boot-line-label { color: var(--paper); font-weight: 600; }
+.boot-line-header .boot-line-value { color: var(--ink-mute); }
+
+.boot-skip-hint {
+  margin-top: 24px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  text-align: right;
+  opacity: 0.7;
+}
+
+/* ----- Menu screens (main + options) ----- */
+.menu-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(243,237,225,0.04), transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(243,237,225,0.015) 0,
+      rgba(243,237,225,0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    var(--slate-deep);
+  color: var(--paper);
+  font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.menu-inner {
+  width: min(560px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+/* ----- Main menu title block ----- */
+.menu-title-block {
+  text-align: center;
+  margin-top: 24px;
+}
+.menu-title {
+  font-family: var(--font-sans);
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--paper);
+  margin: 0;
+  line-height: 1.05;
+}
+.menu-title-rule {
+  width: 64px;
+  height: 2px;
+  background: var(--accent);
+  margin: 12px auto 0;
+  opacity: 0.85;
+}
+.menu-subtitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: var(--ink-mute);
+  margin: 16px 0 0;
+}
+
+/* ----- Main menu buttons (chrome / platinum bevel) ----- */
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+}
+.menu-btn {
+  width: 240px;
+  height: 44px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--platinum);
+  border-top: 1px solid var(--platinum-light);
+  border-left: 1px solid var(--platinum-light);
+  border-right: 1px solid var(--platinum-deep);
+  border-bottom: 1px solid var(--platinum-deep);
+  box-shadow: 1px 1px 0 var(--ink);
+  cursor: pointer;
+  transition: background calc(0.15s * var(--anim-mult)) ease,
+              color calc(0.15s * var(--anim-mult)) ease;
+}
+.menu-btn:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.menu-btn:active {
+  border-top-color: var(--platinum-deep);
+  border-left-color: var(--platinum-deep);
+  border-right-color: var(--platinum-light);
+  border-bottom-color: var(--platinum-light);
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+/* Version footer — bottom-left, mono, mute. */
+.menu-version {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--ink-mute);
+  opacity: 0.85;
+}
+
+/* ----- Options screen ----- */
+.options-inner {
+  width: min(620px, 92vw);
+  align-items: stretch;
+  gap: 16px;
+}
+.options-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.opt-back {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: transparent;
+  border: 1px solid var(--ink-mute);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background calc(0.15s * var(--anim-mult)) ease,
+              border-color calc(0.15s * var(--anim-mult)) ease;
+}
+.opt-back:hover { background: rgba(243,237,225,0.06); border-color: var(--paper); }
+.options-title {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--paper);
+  margin: 0;
+}
+
+.opt-panel.panel {
+  background: rgba(243,237,225,0.04);
+  border-top: 1px solid rgba(165,159,150,0.4);
+  border-left: 1px solid rgba(165,159,150,0.4);
+  border-right: 1px solid rgba(235,231,223,0.15);
+  border-bottom: 1px solid rgba(235,231,223,0.15);
+  padding: 12px 16px 16px;
+  color: var(--paper);
+}
+.opt-panel-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(107,110,118,0.3);
+}
+
+.opt-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+.opt-row + .opt-row { border-top: 1px dotted rgba(107,110,118,0.25); }
+.opt-label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--paper);
+}
+.opt-sublabel {
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+.opt-control {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--paper);
+}
+.opt-radios {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.opt-radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.opt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.opt-slider-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+#opt-tick-slider {
+  width: 160px;
+  accent-color: var(--accent);
+}
+.opt-slider-readout {
+  display: inline-block;
+  min-width: 64px;
+  text-align: right;
+  color: var(--accent-soft);
+}
+
+.opt-danger {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: transparent;
+  border: 1px solid var(--alarm);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background calc(0.15s * var(--anim-mult)) ease,
+              color calc(0.15s * var(--anim-mult)) ease;
+}
+.opt-danger:hover {
+  background: var(--alarm);
+  color: var(--paper);
+}
+.opt-danger.armed {
+  background: var(--alarm);
+  color: var(--paper);
+  animation: opt-armed-pulse 1.6s ease-in-out infinite;
+}
+@keyframes opt-armed-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+/* === End Game Shell === */

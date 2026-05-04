@@ -170,6 +170,12 @@ Game.pivotData = {
         'Big-E posted a single-character tweet: a heart. The Council on Long-Term Risk re-shared it with the comment "we have witnessed exactly one of these." Lambda Quarterly is preparing a profile titled "Inside The Pivot."\n\n' +
         'Hari Iyer is skeptical, professionally. "Mission-flips look great on paper," he wrote, "and then the next quarter shows up." He is not wrong. The next quarter is going to show up regardless of what we put in the press release.\n\n' +
         'A whiteboard in the kitchen now reads, in Sasha\'s handwriting: WE ARE ACTUALLY GOING TO DO THIS. Underneath, in different handwriting: WE BETTER.',
+      minigameId: 'constitutional',
+      minigameMap(result) {
+        if (!result || typeof result.choiceIdx !== 'number') return 1;
+        // 0 = Restructure, 1 = Soft branding. Anything else clamps to 1.
+        return result.choiceIdx === 0 ? 0 : 1;
+      },
       condition(state) {
         return state.capabilityTier >= 1 && !state.pivots['aligned-mission'] &&
           !state.pivots['ipo'] && !state.pivots['defense-contract'];

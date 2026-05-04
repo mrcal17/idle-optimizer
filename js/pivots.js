@@ -100,6 +100,60 @@ Game.pivots = (function() {
 
     // Wipe choices & rewire
     choicesEl.innerHTML = '';
+
+    // Minigame route: if the pivot has a minigameId AND the framework + the
+    // specific minigame are loaded AND auto-skip isn't on, surface a single
+    // "Engage" button that hands off to the minigame. The result is mapped
+    // back to a choice index via pivot.minigameMap(result).
+    const autoSkip = !!(Game.settings && Game.settings.get && Game.settings.get('autoSkipMinigames'));
+    const useMinigame = !!(
+      pivot.minigameId &&
+      Game.minigames &&
+      Game.minigames.registry &&
+      Game.minigames.registry[pivot.minigameId] &&
+      !autoSkip
+    );
+
+    if (useMinigame) {
+      const engage = document.createElement('button');
+      engage.className = 'action-btn pivot-choice-btn primary';
+      engage.textContent = 'Engage';
+      const hint = document.createElement('span');
+      hint.className = 'choice-sub';
+      hint.textContent = 'Open the drafting interface.';
+      engage.appendChild(document.createElement('br'));
+      engage.appendChild(hint);
+
+      engage.addEventListener('click', () => {
+        // Close the pivot overlay, but keep pendingDecision so the sim stays
+        // halted while the minigame runs. The minigame framework will reuse
+        // pendingDecision (overwriting it with type:'minigame').
+        overlay.classList.add('hidden');
+
+        Game.minigames.open(pivot.minigameId, {
+          context: { pivot },
+          onComplete(result) {
+            let idx = 1;
+            try {
+              if (typeof pivot.minigameMap === 'function') {
+                idx = pivot.minigameMap(result);
+              } else if (result && typeof result.choiceIdx === 'number') {
+                idx = result.choiceIdx;
+              }
+            } catch (e) { idx = 1; }
+            const max = (pivot.choices || []).length - 1;
+            if (typeof idx !== 'number' || idx < 0 || idx > max) idx = 1;
+            takeChoice(pivot.id, idx);
+          },
+        });
+      });
+
+      choicesEl.appendChild(engage);
+      overlay.classList.remove('hidden');
+      return;
+    }
+
+    // Default: render the choice buttons.
     (pivot.choices || []).forEach((choice, idx) => {
       const btn = document.createElement('button');
       btn.className = 'action-btn pivot-choice-btn';

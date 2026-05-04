@@ -8,6 +8,94 @@
 </head>
 <body>
 
+<!-- Boot screen — POST-style intro, plays once on page load. -->
+<div id="boot-screen" class="boot-screen">
+  <div class="boot-inner">
+    <div class="boot-lines"></div>
+    <div class="boot-skip-hint">click to skip</div>
+  </div>
+</div>
+
+<!-- Main menu — appears after boot. New Game / Options. -->
+<div id="main-menu" class="menu-screen hidden">
+  <div class="menu-inner">
+    <div class="menu-title-block">
+      <h1 class="menu-title">IDLE OPTIMIZER</h1>
+      <div class="menu-title-rule"></div>
+      <p class="menu-subtitle">a doom-debates idler</p>
+    </div>
+    <div class="menu-buttons">
+      <button id="menu-new-game" class="menu-btn" type="button">NEW GAME</button>
+      <button id="menu-options"  class="menu-btn" type="button">OPTIONS</button>
+    </div>
+  </div>
+  <div class="menu-version">v0.1 &middot; forge prototype</div>
+</div>
+
+<!-- Options — slides in from main menu. Useful settings live here. -->
+<div id="options-screen" class="menu-screen hidden">
+  <div class="menu-inner options-inner">
+    <div class="options-head">
+      <button id="opt-back-btn" class="opt-back" type="button">&larr; Back</button>
+      <h2 class="options-title">OPTIONS</h2>
+    </div>
+
+    <section class="opt-panel panel">
+      <div class="opt-panel-title">Display</div>
+      <div class="opt-row">
+        <div class="opt-label">Animation speed</div>
+        <div class="opt-control opt-radios">
+          <label><input type="radio" name="opt-anim-speed" value="reduced" /> Reduced</label>
+          <label><input type="radio" name="opt-anim-speed" value="standard" /> Standard</label>
+          <label><input type="radio" name="opt-anim-speed" value="cinematic" /> Cinematic</label>
+        </div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">High contrast</div>
+        <div class="opt-control">
+          <label class="opt-toggle"><input type="checkbox" id="opt-high-contrast" /> <span>On</span></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="opt-panel panel">
+      <div class="opt-panel-title">Gameplay</div>
+      <div class="opt-row">
+        <div class="opt-label">Tick rate</div>
+        <div class="opt-control opt-slider-row">
+          <input type="range" id="opt-tick-slider" min="500" max="2000" step="50" value="1000" />
+          <span id="opt-tick-readout" class="opt-slider-readout">1000 ms</span>
+        </div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Sound</div>
+        <div class="opt-control">
+          <label class="opt-toggle"><input type="checkbox" id="opt-sound" /> <span>On</span></label>
+        </div>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Confirm major actions</div>
+        <div class="opt-control">
+          <label class="opt-toggle"><input type="checkbox" id="opt-confirm-major" /> <span>On</span></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="opt-panel panel">
+      <div class="opt-panel-title">Data</div>
+      <div class="opt-row">
+        <div class="opt-label">
+          Reset all data
+          <div class="opt-sublabel">Clears settings and any saved progress, then reloads.</div>
+        </div>
+        <div class="opt-control">
+          <button id="opt-reset-data" class="opt-danger" type="button">Reset all data</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
 <!-- Archetype select overlay (run start) -->
 <div id="archetype-select" class="overlay hidden">
   <div class="overlay-box wide">
@@ -70,7 +158,17 @@
       <div class="window-glass" id="window-glass"></div>
       <div class="window-frame"></div>
     </div>
-    <div class="room-corkboard" id="room-corkboard"></div>
+    <div class="room-clock" id="room-clock" aria-hidden="true">
+      <div class="room-clock-face">
+        <span class="room-clock-tick room-clock-tick-12"></span>
+        <span class="room-clock-tick room-clock-tick-3"></span>
+        <span class="room-clock-tick room-clock-tick-6"></span>
+        <span class="room-clock-tick room-clock-tick-9"></span>
+        <span class="room-clock-hand room-clock-hour" id="room-clock-hour"></span>
+        <span class="room-clock-hand room-clock-min" id="room-clock-min"></span>
+        <span class="room-clock-pivot"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Desk surface — foreground band with on-desk objects -->
@@ -78,16 +176,11 @@
     <div class="desk-object phone" id="desk-phone" title="Phone (only rings when it must)">
       <span class="icon icon-phone"></span>
       <span class="phone-ring-ind" id="phone-ring-ind"></span>
+      <span class="desk-object-label">PHONE</span>
     </div>
     <div class="desk-object handbook" id="desk-handbook" title="Lab Director's Handbook">
       <span class="icon icon-book"></span>
-    </div>
-    <div class="desk-object mug" id="desk-mug" title="Coffee">
-      <span class="icon icon-mug"></span>
-      <span class="mug-steam" id="mug-steam">·</span>
-    </div>
-    <div class="desk-object plant" id="desk-plant" title="Plant">
-      <span class="icon icon-plant" id="plant-glyph"></span>
+      <span class="desk-object-label">HANDBOOK</span>
     </div>
   </div>
 
@@ -336,10 +429,32 @@
   </div>
 </div>
 
+<!-- Minigame overlay — generic shell hosting any registered minigame.
+     The minigame module owns #minigame-content; the shell owns the
+     title/description/footer. See MINIGAMES.md §4. -->
+<div id="minigame-overlay" class="overlay hidden minigame-overlay">
+  <div class="minigame-frame">
+    <div class="minigame-titlebar">
+      <span class="minigame-title" id="minigame-title">Minigame</span>
+      <span class="minigame-kind" id="minigame-kind"></span>
+    </div>
+    <div class="minigame-desc" id="minigame-desc"></div>
+    <div class="minigame-content" id="minigame-content"></div>
+    <div class="minigame-footer">
+      <span class="minigame-time" id="minigame-time"></span>
+      <div class="minigame-actions" id="minigame-actions">
+        <button id="minigame-skip" class="action-btn">Skip — accept default</button>
+        <button id="minigame-submit" class="action-btn primary" disabled>Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Module load order matters: data → sim → systems → scenes → main -->
 <script src="js/icons.js"></script>
 <script src="js/state.js"></script>
 <script src="js/config.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/data/archetypes.js"></script>
 <script src="js/data/tiers.js"></script>
 <script src="js/data/upgrades.js"></script>
@@ -360,12 +475,16 @@
 <script src="js/modelIdentity.js"></script>
 <script src="js/deployments.js"></script>
 <script src="js/personnel.js"></script>
-<script src="js/events.js"></script>
 <script src="js/income.js"></script>
 <script src="js/pivots.js"></script>
 <script src="js/autopilot.js"></script>
 <script src="js/endings.js"></script>
 <script src="js/labcard.js"></script>
+<script src="js/minigames.js"></script>
+<script src="js/minigames/constitutional.js"></script>
+<script src="js/minigames/red-team.js"></script>
+<script src="js/minigames/rlhf-sweep.js"></script>
+<script src="js/events.js"></script>
 <script src="js/founder.js"></script>
 <script src="js/synergies.js"></script>
 <script src="js/stages.js"></script>
@@ -382,6 +501,9 @@
 <script src="js/scenes/operations.js"></script>
 <script src="js/scenes/world.js"></script>
 <script src="js/scenes/logs.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/options.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

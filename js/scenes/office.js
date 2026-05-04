@@ -42,6 +42,11 @@ Game.scenes.office = {
         <div class="models-row" id="office-models-row"></div>
         <div class="model-detail-panel hidden" id="office-model-detail"></div>
       </div>
+
+      <div class="panel">
+        <h3>Wall</h3>
+        <div id="office-corkboard" aria-label="Models pinned to the lab wall"></div>
+      </div>
     `;
     this.bindHandlers(container);
   },
@@ -484,6 +489,29 @@ Game.scenes.office = {
       if (panel) {
         panel.classList.add('hidden');
         panel.innerHTML = '';
+      }
+    }
+
+    // Corkboard — moved out of the room layer into TEAM.app. The room
+    // module owns the photo identity logic (crest, rotation, labels) so
+    // we reuse it via Game.room.addModelPhoto. The room's per-tick
+    // reconcile picks this up automatically once the panel exists in DOM.
+    if (Game.room && typeof Game.room.addModelPhoto === 'function') {
+      const cork = document.getElementById('office-corkboard');
+      if (cork) {
+        const liveModels = (s.models || []).filter(m => m && m.id != null);
+        // Each render of TEAM.app discards the previous corkboard contents
+        // (innerHTML rebuild above). Repopulate from current state.
+        liveModels.forEach(m => Game.room.addModelPhoto(m));
+        if (!cork.querySelector('.corkboard-photo')) {
+          let empty = cork.querySelector('.corkboard-empty');
+          if (!empty) {
+            empty = document.createElement('div');
+            empty.className = 'corkboard-empty';
+            empty.textContent = 'No models pinned yet.';
+            cork.appendChild(empty);
+          }
+        }
       }
     }
   },

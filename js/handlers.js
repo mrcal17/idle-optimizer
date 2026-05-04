@@ -86,12 +86,6 @@ Game.handlers = (function() {
   /* ---------- public API ---------- */
 
   function init() {
-    /* Idempotent. Safe to call on every startRun. We don't have any
-       persistent listeners that need disposal — option buttons get rewired
-       each time show() runs — but we still gate the body so we don't double
-       up if startRun is called twice in dev. */
-    if (_wired) return;
-    _wired = true;
     /* Defensive: wipe any stale active scenario UI at run start. The DOM
        node is shared across runs (single-page app) and a previous run
        might have left it visible. */
@@ -100,6 +94,9 @@ Game.handlers = (function() {
     _clearAutoIgnore();
     _activeScenario = null;
     _lastFireTick = -999;
+    if (Game.room && Game.room.hangUpPhone) Game.room.hangUpPhone();
+    if (_wired) return;
+    _wired = true;
   }
 
   function tick() {
@@ -183,6 +180,7 @@ Game.handlers = (function() {
     _lastFireTick = s.tickCount;
 
     frame.classList.remove('hidden');
+    if (Game.room && Game.room.ringPhone) Game.room.ringPhone(handlerId);
 
     /* "Let it ring": if any option is flagged autoIgnore, schedule auto-
        dismissal that picks that option as if the player walked away. */
@@ -277,6 +275,7 @@ Game.handlers = (function() {
       s.pendingDecision = null;
     }
     _activeScenario = null;
+    if (Game.room && Game.room.hangUpPhone) Game.room.hangUpPhone();
     if (Game.ui && Game.ui.refresh) Game.ui.refresh();
   }
 

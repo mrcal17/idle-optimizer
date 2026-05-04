@@ -130,6 +130,7 @@ Game.discovery = (function() {
       if (s.scenesUnlocked && !s.scenesUnlocked[cfg.navScene]) {
         s.scenesUnlocked[cfg.navScene] = true;
       }
+      if (Game.ui && Game.ui.refreshNav) Game.ui.refreshNav();
     }
 
     // Soft log
@@ -388,6 +389,20 @@ Game.discovery = (function() {
       } else {
         btn.classList.remove('nav-hidden');
         btn.classList.remove('locked');
+      }
+    });
+    if (Game.state && Game.state.scenesUnlocked) {
+      initiallyHiddenScenes.forEach(sc => {
+        Game.state.scenesUnlocked[sc] = false;
+      });
+    }
+    document.querySelectorAll('#app-dock .dock-btn').forEach(btn => {
+      const sc = btn.dataset.scene;
+      if (initiallyHiddenScenes.indexOf(sc) >= 0) {
+        btn.classList.add('dock-locked');
+        btn.classList.remove('dock-just-unlocked');
+      } else {
+        btn.classList.remove('dock-locked');
       }
     });
 

@@ -140,6 +140,7 @@
   /* Pure-CSS glyphs (no SVG): handled entirely by the icon classes
      in styles.css under the Icons block. */
   const CSS_ONLY = new Set(['x', 'min', 'max']);
+  const SIZE_CLASSES = new Set(['icon-sm', 'icon-lg', 'icon-xl', 'icon-xxl']);
 
   /* Return the bare inner SVG markup (or empty string for CSS-only icons). */
   Game.icons.svg = function (name) {
@@ -213,7 +214,7 @@
     const scope = root || document;
     scope.querySelectorAll('.icon').forEach(span => {
       if (span.firstElementChild) return; // already hydrated
-      const cls = Array.from(span.classList).find(c => c.startsWith('icon-') && !['icon-sm','icon-lg'].includes(c));
+      const cls = Array.from(span.classList).find(c => c.startsWith('icon-') && !SIZE_CLASSES.has(c));
       if (!cls) return;
       const name = cls.replace(/^icon-/, '');
       if (CSS_ONLY.has(name)) return; // pure CSS pictograms — no SVG payload

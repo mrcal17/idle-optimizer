@@ -173,7 +173,7 @@ Game.scenes.operations = {
       `;
       deployableBox.querySelectorAll('button[data-deploy-model]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const mid = parseInt(btn.dataset.deployModel, 10);
+          const mid = btn.dataset.deployModel;
           if (Game.deployments && Game.deployments.openOverlay) {
             Game.deployments.openOverlay(mid);
           }
@@ -253,9 +253,13 @@ Game.scenes.operations = {
         if (r && typeof r === 'object') costObj = { compute: r.compute || 0, gpuTime: r.gpuTime || 0 };
         else if (typeof r === 'number') costObj = { compute: r, gpuTime: 0 };
       } catch (e) { /* keep zeros */ }
-      const idleCount = s.gpus.filter(g => !g.busyJobId).length;
+      const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+        ? Game.deployments.allocatedGpuIds()
+        : new Set();
+      const idleCount = s.gpus.filter(g => !g.busyJobId && !deployed.has(g.id)).length;
       const tierGate = (m.requiresTier !== undefined) && s.capabilityTier < m.requiresTier;
-      const disabled = (s.compute < costObj.compute) || (idleCount === 0 && m.id !== 'continual-learning') || tierGate;
+      const minComputeToStart = Math.min(costObj.compute * 0.05, 5);
+      const disabled = (s.compute < minComputeToStart) || (idleCount === 0 && m.id !== 'continual-learning') || tierGate;
       const costLabel = m.id === 'continual-learning'
         ? (s.flags['continual-learning'] ? 'pause' : 'toggle')
         : `⚡${Game.ui.fmt(costObj.compute)}${costObj.gpuTime ? ' · ' + costObj.gpuTime + 'd' : ''}`;
@@ -283,7 +287,10 @@ Game.scenes.operations = {
 
     const hint = document.getElementById('ops-training-hint');
     if (hint) {
-      const idleCount = s.gpus.filter(g => !g.busyJobId).length;
+      const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+        ? Game.deployments.allocatedGpuIds()
+        : new Set();
+      const idleCount = s.gpus.filter(g => !g.busyJobId && !deployed.has(g.id)).length;
       hint.textContent = `${idleCount} idle GPU${idleCount === 1 ? '' : 's'} available · ${s.trainingRuns.length} active run${s.trainingRuns.length === 1 ? '' : 's'}`;
     }
   },
@@ -301,14 +308,17 @@ Game.scenes.operations = {
     }
 
     const meta = this._specMeta;
+    const deployed = (Game.deployments && Game.deployments.allocatedGpuIds)
+      ? Game.deployments.allocatedGpuIds()
+      : new Set();
     box.innerHTML = gpus.map(g => {
       const spec = g.spec || 'general';
       const m = meta[spec] || meta.general;
-      const locked = !!g.busyJobId;
+      const locked = !!g.busyJobId || deployed.has(g.id);
       const classes = ['gpu-spec-cell', `spec-${spec}`];
       if (locked) classes.push('locked');
       const title = locked
-        ? `GPU #${g.id} — ${m.full} · busy on training run`
+        ? `GPU #${g.id} — ${m.full} · ${g.busyJobId ? 'busy on training run' : 'allocated to deployment'}`
         : `GPU #${g.id} — ${m.full} · click to cycle`;
       return `<div class="${classes.join(' ')}" data-gpu-id="${g.id}" data-locked="${locked ? '1' : '0'}" title="${title}">
         <span class="gsc-id">#${g.id}</span>
@@ -323,11 +333,12 @@ Game.scenes.operations = {
         const id = parseInt(cell.dataset.gpuId, 10);
         const gpu = s.gpus.find(g => g.id === id);
         if (!gpu) return;
-        if (gpu.busyJobId) {
+        if (gpu.busyJobId || deployed.has(gpu.id)) {
           // Show transient banner + diegetic advisor toast.
-          Game.scenes.operations._showGpuBanner(`GPU #${gpu.id} is locked — currently on a training run.`);
+          const reason = gpu.busyJobId ? 'currently on a training run' : 'currently allocated to a deployment';
+          Game.scenes.operations._showGpuBanner(`GPU #${gpu.id} is locked — ${reason}.`);
           if (Game.events && Game.events.advise) {
-            Game.events.advise('Ops Lead', `GPU #${gpu.id} is on a training run — wait for it to finish or pause the run before re-speccing.`);
+            Game.events.advise('Ops Lead', `GPU #${gpu.id} is ${reason} — free it before re-speccing.`);
           }
           return;
         }

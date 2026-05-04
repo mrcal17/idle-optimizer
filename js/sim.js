@@ -5,11 +5,13 @@ window.Game = window.Game || {};
 Game.sim = {};
 
 Game.sim.start = function() {
+  Game.sim.stop();
   Game.sim._intervalId = setInterval(Game.sim.frame, Game.config.tickMs);
 };
 
 Game.sim.stop = function() {
   if (Game.sim._intervalId) clearInterval(Game.sim._intervalId);
+  Game.sim._intervalId = null;
 };
 
 Game.sim.frame = function() {
@@ -36,6 +38,7 @@ Game.sim.tick = function() {
   let baselineCompute = 0;
   let inferenceRevenueLegacy = 0;
   const deploymentsLoaded = !!(Game.deployments && Game.deployments.tick);
+  const arch = (Game.archetypes && s.archetypeId) ? Game.archetypes[s.archetypeId] : null;
   for (const g of idleGpus) {
     const specMult = c.gpu.specMult[g.spec] || 1;
     if (g.spec === 'inference') {
@@ -43,7 +46,8 @@ Game.sim.tick = function() {
         // Defensive fallback only: legacy passive inference revenue.
         inferenceRevenueLegacy += c.revenue.perInferenceGpu *
           (1 + s.capabilityTier * c.revenue.capabilityRevenueScale) *
-          c.gpu.workloadBonus.inference;
+          c.gpu.workloadBonus.inference *
+          (arch ? (arch.revenueMod || 1) : 1);
       }
       // Otherwise: inference GPU revenue is owned by Game.deployments.tick().
     } else {
@@ -82,13 +86,15 @@ Game.sim.tick = function() {
   // Compute trickles into capability research at a slow rate (research-specialized GPUs amplify)
   const researchGpus = idleGpus.filter(g => g.spec === 'research').length;
   const researchBonus = researchGpus * (c.gpu.workloadBonus.research - 1);
-  const archMod = (Game.archetypes && s.archetypeId) ? (Game.archetypes[s.archetypeId].capabilityMod || 1) : 1;
-  const capabilityGain = c.capability.computeToCapability * (idleGpus.length * 0.5 + researchBonus) * archMod;
+  const archMod = arch ? (arch.capabilityMod || 1) : 1;
+  let capabilityGain = c.capability.computeToCapability * (idleGpus.length * 0.5 + researchBonus) * archMod;
+  if (s.flags['aligned-mission']) capabilityGain *= 0.75;
   s.capability += capabilityGain;
 
   /* === Pressure dynamics === */
   // Trust recovery & drift
-  let trustDelta = c.pressure.trustRecovery;
+  let trustDelta = c.pressure.trustRecovery * (arch ? (arch.trustMod || 1) : 1);
+  if (s.flags['aligned-mission']) trustDelta *= 1.5;
   // Automation visibility hit
   const autoCount = s.personnel.filter(p => p.level >= 3).length;
   trustDelta -= autoCount * c.pressure.automationVisibilityHit;
@@ -98,7 +104,9 @@ Game.sim.tick = function() {
 
   // Control drift
   const interpCoverage = (Game.upgrades && Game.upgrades.coverage) ? Game.upgrades.coverage('interpretability') : 0;
-  let controlDelta = -capabilityGain * c.pressure.controlDriftPerCapability * 100 * (1 - interpCoverage);
+  let controlDelta = -capabilityGain * c.pressure.controlDriftPerCapability * 100 * (1 - interpCoverage) * (arch ? (arch.controlMod || 1) : 1);
+  if (s.flags['aligned-mission']) controlDelta *= 0.5;
+  if (s.flags['agent-fleet-deployed']) controlDelta *= 2;
   // Auto-personnel drift
   for (const p of s.personnel) controlDelta -= (c.personnel.autoControlDrift[p.level] || 0) * 0.01;
   // Active safety research counteracts
@@ -166,6 +174,12 @@ Game.sim.tick = function() {
 Game.sim.checkTierUp = function() {
   const s = Game.state;
   const next = s.capabilityTier + 1;
+  if (s.flags['capability-cap-lighthouse'] && next > 3) {
+    return;
+  }
+  if (Game.tiers && next === Game.tiers.length - 1 && !s.flags['apex-pretrain-complete']) {
+    return;
+  }
   if (next >= Game.config.tierThresholds.length) {
     // Apex check happens via training (Pharos -> Apex requires final pretrain)
     return;
@@ -190,7 +204,9 @@ Game.sim.checkSceneUnlocks = function() {
     Game.addLog('Office unlocked. The lab has more than just you now.', '');
     if (Game.ui && Game.ui.refreshNav) Game.ui.refreshNav();
   }
-  if (!s.scenesUnlocked.world && s.gpus.some(g => g.spec === 'inference')) {
+  const hasActiveDeployment = !!(Game.deployments && Game.deployments.list &&
+    Game.deployments.list.some(d => (d.gpuIds || []).length > 0));
+  if (!s.scenesUnlocked.world && hasActiveDeployment) {
     s.scenesUnlocked.world = true;
     Game.addLog('World view unlocked. Your deployments have a footprint.', '');
     if (Game.ui && Game.ui.refreshNav) Game.ui.refreshNav();

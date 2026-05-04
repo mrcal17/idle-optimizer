@@ -7,25 +7,34 @@ Game.ui = {
   _tickerIndex: 0,
   _lastTickerSwap: 0,
   _floatTexts: [],
+  _tickerIntervalId: null,
+  _navWired: false,
+  _speedWired: false,
 };
 
 Game.ui.boot = function() {
   // Wire scene nav
-  document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('locked')) return;
-      Game.ui.showScene(btn.dataset.scene);
+  if (!Game.ui._navWired) {
+    document.querySelectorAll('#scene-nav .nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('locked')) return;
+        Game.ui.showScene(btn.dataset.scene);
+      });
     });
-  });
+    Game.ui._navWired = true;
+  }
 
   // Wire speed controls
-  document.querySelectorAll('.speed-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const speed = parseInt(btn.dataset.speed, 10);
-      Game.state.speed = speed;
-      document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+  if (!Game.ui._speedWired) {
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const speed = parseInt(btn.dataset.speed, 10);
+        Game.state.speed = speed;
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+      });
     });
-  });
+    Game.ui._speedWired = true;
+  }
 
   // Initialize each scene
   if (Game.scenes) {
@@ -114,7 +123,8 @@ Game.ui.fmt1 = function(n) {
 Game.ui.startTicker = function() {
   Game.ui.refreshTicker();
   // Periodically rebuild the ticker so state-reactive headlines surface
-  setInterval(Game.ui.refreshTicker, 30000);
+  if (Game.ui._tickerIntervalId) clearInterval(Game.ui._tickerIntervalId);
+  Game.ui._tickerIntervalId = setInterval(Game.ui.refreshTicker, 30000);
 };
 
 Game.ui.refreshTicker = function() {

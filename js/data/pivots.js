@@ -39,7 +39,6 @@ Game.pivotData = {
             state.flags['shareholder-pressure'] = true;
             state.trust = Math.max(0, state.trust - 6);
             state.pivots['ipo'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('IPO. The lab is now answerable to the market.', 'pivot');
           },
         },
@@ -50,7 +49,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 4);
             state.flags['stayed-private'] = true;
             state.pivots['ipo'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Declined IPO. The bankers left their shoes on the carpet.', 'pivot');
           },
         },
@@ -82,7 +80,6 @@ Game.pivotData = {
             state.dependence = Math.min(100, state.dependence + 8);
             state.trust = Math.min(100, state.trust + 5);
             state.pivots['open-source'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Weights released. The internet now has a copy of you.', 'pivot');
           },
         },
@@ -94,7 +91,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 3);
             state.flags['research-access-program'] = true;
             state.pivots['open-source'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Research-access program announced. Big-E sighs in relief, audibly.', 'pivot');
           },
         },
@@ -105,7 +101,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 3);
             state.flags['closed-weights'] = true;
             state.pivots['open-source'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('Weights stay closed. The garageband_alignment thread moves on.', 'pivot');
           },
         },
@@ -138,7 +133,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 10);
             state.control = Math.max(0, state.control - 2);
             state.pivots['defense-contract'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Defense contract signed. The cream paper went into a safe.', 'pivot');
           },
         },
@@ -150,7 +144,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 3);
             state.flags['defense-research-carveout'] = true;
             state.pivots['defense-contract'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Research-only carveout signed. Smaller cheque, smaller asterisk.', 'pivot');
           },
         },
@@ -161,7 +154,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 2);
             state.flags['declined-defense'] = true;
             state.pivots['defense-contract'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('Defense offer declined. The cream-colored paper went home with the man.', 'pivot');
           },
         },
@@ -192,7 +184,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 12);
             state.control = Math.min(100, state.control + 6);
             state.pivots['aligned-mission'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Restructured around alignment. Mira cried. The whiteboard is now load-bearing.', 'pivot');
           },
         },
@@ -203,7 +194,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 3);
             state.flags['soft-alignment-branding'] = true;
             state.pivots['aligned-mission'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Aligned-branded. Hari Iyer is already writing the followup.', 'pivot');
           },
         },
@@ -234,7 +224,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 12);
             state.control = Math.min(100, state.control + 8);
             state.pivots['gov-deal'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Government framework signed. Senator Ngo is, technically, on your side.', 'pivot');
           },
         },
@@ -245,7 +234,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 5);
             state.flags['voluntary-commitments'] = true;
             state.pivots['gov-deal'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Voluntary commitments published. The aide on the line sounded tired.', 'pivot');
           },
         },
@@ -256,7 +244,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 6);
             state.flags['declined-gov-deal'] = true;
             state.pivots['gov-deal'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('Declined the framework. Senator Ngo will, regrettably, remember this.', 'pivot');
           },
         },
@@ -288,7 +275,6 @@ Game.pivotData = {
             state.flags['subsidiary'] = true;
             state.dependence = Math.min(100, state.dependence + 4);
             state.pivots['acquisition'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Acquired. The new logo is going up next week. Mira finished her banana.', 'pivot');
           },
         },
@@ -308,7 +294,6 @@ Game.pivotData = {
               Game.addLog('They refused. The leak hit Hari Iyer\'s column twelve minutes later.', 'pivot');
             }
             state.pivots['acquisition'] = 1;
-            state.stats.pivotCount++;
           },
         },
         {
@@ -318,7 +303,6 @@ Game.pivotData = {
             state.flags['declined-acquisition'] = true;
             state.trust = Math.min(100, state.trust + 2);
             state.pivots['acquisition'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('Declined the offer. Mira saved the term sheet "for the museum, someday."', 'pivot');
           },
         },
@@ -351,7 +335,6 @@ Game.pivotData = {
             state.dependence = Math.min(100, state.dependence + 12);
             state.trust = Math.max(0, state.trust - 4);
             state.pivots['agent-fleet'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Agent fleet deployed. The footnotes are now in production.', 'pivot');
           },
         },
@@ -362,7 +345,6 @@ Game.pivotData = {
             state.flags['agent-fleet-pilot'] = true;
             state.dependence = Math.min(100, state.dependence + 4);
             state.pivots['agent-fleet'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Limited pilot launched. Three verticals. Three layers of kill-switch.', 'pivot');
           },
         },
@@ -374,7 +356,6 @@ Game.pivotData = {
             state.trust = Math.min(100, state.trust + 4);
             state.control = Math.min(100, state.control + 3);
             state.pivots['agent-fleet'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('Fleet shelved. Devi went home. The deck is in /archive/2026/we_didn_t.', 'pivot');
           },
         },
@@ -404,7 +385,6 @@ Game.pivotData = {
             state.capability = Math.max(0, state.capability * 0.6);
             state.flags['signed-open-letter'] = true;
             state.pivots['open-letter'] = 0;
-            state.stats.pivotCount++;
             Game.addLog('Open letter signed. Big-E is, briefly, beaming.', 'pivot');
           },
         },
@@ -415,7 +395,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 10);
             state.flags['declined-open-letter'] = true;
             state.pivots['open-letter'] = 1;
-            state.stats.pivotCount++;
             Game.addLog('Public decline issued. Hari moved your name to the other column.', 'pivot');
           },
         },
@@ -426,7 +405,6 @@ Game.pivotData = {
             state.trust = Math.max(0, state.trust - 4);
             state.flags['silent-on-open-letter'] = true;
             state.pivots['open-letter'] = 2;
-            state.stats.pivotCount++;
             Game.addLog('No public statement. The maybe column is now a question mark.', 'pivot');
           },
         },

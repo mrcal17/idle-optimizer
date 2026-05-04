@@ -87,11 +87,14 @@ Game.deployments = (function () {
   function findModel(modelId) {
     const s = Game.state;
     if (!s || !s.models) return null;
+    const numericId = (typeof modelId === 'string' && modelId.trim() !== '' && !Number.isNaN(Number(modelId)))
+      ? Number(modelId)
+      : modelId;
     // Prefer .id; fall back to tier-keyed lookup if id missing.
-    let m = s.models.find(x => x.id === modelId);
+    let m = s.models.find(x => x.id === modelId || x.id === numericId);
     if (m) return m;
     // Fallback: treat modelId as tier index for legacy-shape models.
-    m = s.models.find(x => x.tier === modelId);
+    m = s.models.find(x => x.tier === modelId || x.tier === numericId);
     return m || null;
   }
 
@@ -140,7 +143,7 @@ Game.deployments = (function () {
 
   function freeInferenceGpus() {
     const allocated = allocatedGpuIds();
-    return inferenceGpus().filter(g => !allocated.has(g.id));
+    return inferenceGpus().filter(g => !allocated.has(g.id) && !g.busyJobId);
   }
 
   /* ---------- lifecycle ---------- */
@@ -168,6 +171,7 @@ Game.deployments = (function () {
       const g = gpuById(id);
       if (!g) continue;
       if (g.spec !== 'inference') continue;
+      if (g.busyJobId) continue;
       if (allocated.has(g.id)) continue;
       validGpuIds.push(g.id);
     }
@@ -253,7 +257,7 @@ Game.deployments = (function () {
     const dep = Game.deployments.list[idx];
     const model = findModel(dep.modelId);
     if (model && ('status' in model || 'deploymentId' in model)) {
-      model.status = 'archived';
+      model.status = 'trained';
       model.deploymentId = null;
     }
     Game.deployments.list.splice(idx, 1);
@@ -289,6 +293,13 @@ Game.deployments = (function () {
       const model = findModel(dep.modelId);
       const brand = modelBrand(model);
       const cap = modelCapability(model);
+      const arch = (Game.archetypes && s.archetypeId) ? Game.archetypes[s.archetypeId] : null;
+      let revenueMod = arch ? (arch.revenueMod || 1) : 1;
+      if (s.flags['public-api']) revenueMod *= 1.3;
+      if (s.flags['fleet-ops']) revenueMod *= 1.4;
+      if (s.flags['agent-products']) revenueMod *= 1.75;
+      if (s.flags['agent-fleet-deployed']) revenueMod *= 3;
+      if (s.flags['agent-fleet-pilot']) revenueMod *= 1.5;
 
       /* Per-GPU revenue:
          base + brand-driven uplift (consumer) + capability-driven uplift (enterprise).
@@ -296,7 +307,7 @@ Game.deployments = (function () {
       let perGpu = domain.baseRevPerGpu;
       if (domain.brandScale) perGpu += brand * domain.brandScale;
       if (domain.capabilityScale) perGpu += cap * domain.capabilityScale;
-      const rev = perGpu * gpuCount;
+      const rev = perGpu * gpuCount * revenueMod;
 
       if (rev > 0) {
         s.money += rev;
@@ -332,14 +343,22 @@ Game.deployments = (function () {
   /* ---------- projection helpers (for the deploy overlay) ---------- */
 
   function projectRevenue(domainId, gpuCount, model) {
+    const s = Game.state;
     const domain = getDomain(domainId);
     if (!domain) return 0;
     const brand = modelBrand(model);
     const cap = modelCapability(model);
+    const arch = (Game.archetypes && s && s.archetypeId) ? Game.archetypes[s.archetypeId] : null;
+    let revenueMod = arch ? (arch.revenueMod || 1) : 1;
+    if (s && s.flags['public-api']) revenueMod *= 1.3;
+    if (s && s.flags['fleet-ops']) revenueMod *= 1.4;
+    if (s && s.flags['agent-products']) revenueMod *= 1.75;
+    if (s && s.flags['agent-fleet-deployed']) revenueMod *= 3;
+    if (s && s.flags['agent-fleet-pilot']) revenueMod *= 1.5;
     let perGpu = domain.baseRevPerGpu;
     if (domain.brandScale) perGpu += brand * domain.brandScale;
     if (domain.capabilityScale) perGpu += cap * domain.capabilityScale;
-    return perGpu * gpuCount;
+    return perGpu * gpuCount * revenueMod;
   }
 
   /* ---------- deploy-overlay UI logic ----------
@@ -517,6 +536,13 @@ Game.deployments = (function () {
     _overlayCtx = null;
   }
 
+  function reset() {
+    _nextId = 1;
+    _overlayCtx = null;
+    Game.deployments.list = [];
+    if (Game.state) Game.state.deployments = Game.deployments.list;
+  }
+
   /* ---------- expose ---------- */
 
   return {
@@ -537,6 +563,7 @@ Game.deployments = (function () {
     modelDisplayName,
     openOverlay,
     closeOverlay,
+    reset,
   };
 
 })();

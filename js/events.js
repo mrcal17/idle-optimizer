@@ -261,8 +261,14 @@ Game.events = (function() {
     if (!s || !incident) return;
 
     // Apply the immediate effect, if any
+    const trustBefore = s.trust;
     try { if (incident.effect) incident.effect(s); }
     catch (e) { console.error('Incident effect failed:', incident.id, e); }
+    if ((s.flags['trust-event-shield'] || 0) > 0 && s.trust < trustBefore) {
+      s.trust = trustBefore;
+      s.flags['trust-event-shield'] -= 1;
+      Game.addLog('Defense contract shield absorbed one Trust hit.', 'incident');
+    }
 
     s.stats.incidentCount = (s.stats.incidentCount || 0) + 1;
 

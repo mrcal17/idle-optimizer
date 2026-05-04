@@ -51,7 +51,9 @@ Game.personnel = (function() {
     const s = Game.state;
     if (!s) return null;
     const role = findRole(roleKey);
-    const cost = (role && role.baseCost) ? role.baseCost : Game.config.personnel.hiringCost;
+    const cost = (role && Game.personnelData && Game.personnelData.hireCost)
+      ? Game.personnelData.hireCost(role.key, s)
+      : ((role && role.baseCost) ? role.baseCost : Game.config.personnel.hiringCost);
 
     if (s.money < cost) {
       Game.addLog(`Cannot hire ${role ? role.name : roleKey}: need $${cost}, have $${Math.floor(s.money)}.`, 'warn');
@@ -178,35 +180,37 @@ Game.personnel = (function() {
     if (!s.flags['beat-first-automation']) {
       const autoOmActive = !!s.flags['auto-om-active'] || !!s.stats.autoOmDeployed;
       if (autoOmActive || autos > 0) {
-        s.flags['beat-first-automation'] = true;
         s.stats.firstAutomationDay = s.stats.firstAutomationDay || s.day;
         if (Game.events && Game.events.firstAutomationBeat) {
           Game.events.firstAutomationBeat();
         } else if (Game.events && Game.events.scriptedBeat) {
           Game.events.scriptedBeat('first-automation');
         } else {
+          s.flags['beat-first-automation'] = true;
           Game.addLog('Auto-OM v1 has ordered 4,000 units of grape soda. Pending review.', 'tier');
         }
       }
     }
 
     /* Beat 2 — mid-run inflection: more auto roles than human ones. */
-    if (!s.flags['beat-auto-majority'] && s.personnel.length >= 3 && autos > humans) {
-      s.flags['beat-auto-majority'] = true;
+    if (!s.flags['beat-more-auto-than-human'] && !s.flags['beat-auto-majority'] && s.personnel.length >= 3 && autos > humans) {
       if (Game.events && Game.events.scriptedBeat) {
-        Game.events.scriptedBeat('auto-majority');
+        Game.events.scriptedBeat('more-auto-than-human');
       } else {
+        s.flags['beat-more-auto-than-human'] = true;
+        s.flags['beat-auto-majority'] = true;
         Game.addLog('Your office is quieter than it used to be.', 'tier');
       }
     }
 
     /* Beat 3 — the last human (other than the founder). */
     if (!s.flags['beat-last-human'] && s.personnel.length > 0 && humans === 0) {
-      s.flags['beat-last-human'] = true;
       s.stats.lastHumanDay = s.stats.lastHumanDay || s.day;
+      s.flags['last-human-replaced'] = true;
       if (Game.events && Game.events.scriptedBeat) {
         Game.events.scriptedBeat('last-human');
       } else {
+        s.flags['beat-last-human'] = true;
         Game.addLog('The last human role has been swapped. Only you remain at a desk now.', 'tier');
       }
     }

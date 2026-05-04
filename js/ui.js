@@ -12,6 +12,8 @@ Game.ui = {
   _speedWired: false,
   _osWired: false,
   _startMenuOpen: false,
+  _sceneSwapTimer: null,
+  _sceneSwapToken: 0,
 };
 
 /* App registry — single source of truth for the new taskbar / start menu.
@@ -84,6 +86,11 @@ Game.ui.showScene = function(sceneName) {
   const prev = Game.ui.activeScene;
   Game.ui.activeScene = sceneName;
   const appWindow = document.getElementById('app-window');
+  const token = ++Game.ui._sceneSwapToken;
+  if (Game.ui._sceneSwapTimer) {
+    clearTimeout(Game.ui._sceneSwapTimer);
+    Game.ui._sceneSwapTimer = null;
+  }
   const swap = () => {
     document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden'));
     const target = document.getElementById('scene-' + sceneName);
@@ -95,12 +102,18 @@ Game.ui.showScene = function(sceneName) {
   // Cross-fade window body when switching apps. Fade is 0.25s ease (CSS).
   if (appWindow && prev !== sceneName) {
     appWindow.classList.add('is-switching');
-    setTimeout(() => {
+    Game.ui._sceneSwapTimer = setTimeout(() => {
+      if (token !== Game.ui._sceneSwapToken) return;
+      Game.ui._sceneSwapTimer = null;
       swap();
       // Next frame: drop the class to trigger fade-back-in.
-      requestAnimationFrame(() => appWindow.classList.remove('is-switching'));
+      const raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 0); };
+      raf(() => {
+        if (token === Game.ui._sceneSwapToken) appWindow.classList.remove('is-switching');
+      });
     }, 120);
   } else {
+    if (appWindow) appWindow.classList.remove('is-switching');
     swap();
   }
   // Mirror active state on legacy app-dock + scene-nav (back-compat).
@@ -324,6 +337,7 @@ Game.ui._renderTaskbarTabs = function() {
     btn.addEventListener('click', () => Game.ui.showScene(app.scene));
     host.appendChild(btn);
   });
+  if (Game.icons && Game.icons.hydrate) Game.icons.hydrate(host);
 };
 
 /* Render the start-menu list (all apps; locked ones rendered with a lock
@@ -355,6 +369,7 @@ Game.ui._renderStartMenu = function() {
     }
     host.appendChild(item);
   });
+  if (Game.icons && Game.icons.hydrate) Game.icons.hydrate(host);
 };
 
 /* Sync the OS-window title + active-tab state to the active scene. */

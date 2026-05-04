@@ -82,7 +82,7 @@
     const legacyApp = document.getElementById('app');
     if (legacyApp) legacyApp.classList.remove('hidden');
     const legacyNav = document.getElementById('scene-nav');
-    if (legacyNav) legacyNav.classList.remove('hidden');
+    if (legacyNav) legacyNav.classList.add('hidden');
     // Boot the room (decay layer) + workstation router if loaded.
     if (Game.room && Game.room.init) Game.room.init();
     if (Game.workstation && Game.workstation.init) Game.workstation.init();

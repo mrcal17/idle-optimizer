@@ -83,7 +83,7 @@ Game.makeInitialState = function makeInitialState() {
     pendingDecision: null, // { type, payload }
 
     // Scenes unlocked (tutorial scaffold)
-    scenesUnlocked: { desk: true, office: false, operations: true, world: false, logs: false },
+    scenesUnlocked: { desk: true, office: false, operations: false, world: false, logs: false },
 
     /* === Narrative-update fields (act / day-phase / founder) === */
 

@@ -242,11 +242,6 @@ Game.sim.checkTierUp = function() {
 
 Game.sim.checkSceneUnlocks = function() {
   const s = Game.state;
-  if (!s.scenesUnlocked.office && (s.personnel.length > 1 || s.gpus.length > 1)) {
-    s.scenesUnlocked.office = true;
-    Game.addLog('Office unlocked. The lab has more than just you now.', '');
-    if (Game.ui && Game.ui.refreshNav) Game.ui.refreshNav();
-  }
   const hasActiveDeployment = !!(Game.deployments && Game.deployments.list &&
     Game.deployments.list.some(d => (d.gpuIds || []).length > 0));
   if (!s.scenesUnlocked.world && hasActiveDeployment) {
